@@ -1,0 +1,10 @@
+{
+  "description": "Enables remote monitoring and intelligent management of Antarctic research stations with real-time telemetry, AI predictions, simulations, and alerts for mission-critical decisions.",
+  "robots": {
+    "index": false
+  },
+  "accessibility": {
+    "addBypassLinks": false,
+    "ignoreReducedMotion": false
+  }
+}
