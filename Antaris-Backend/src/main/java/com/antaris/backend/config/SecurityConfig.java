@@ -13,6 +13,17 @@ public class SecurityConfig {
             HttpSecurity http
     ) throws Exception {
 
+        /*
+         * DEVELOPMENT SECURITY CONFIGURATION
+         *
+         * Authentication is intentionally disabled during Phase 1
+         * backend development and API testing.
+         *
+         * Before production deployment, this configuration must be
+         * replaced with proper authentication and authorization,
+         * including role-based access control and secure credentials.
+         */
+
         http
                 // Disable CSRF for development/API testing
                 .csrf(csrf -> csrf.disable())
@@ -21,7 +32,7 @@ public class SecurityConfig {
                 .formLogin(form -> form.disable())
                 .httpBasic(basic -> basic.disable())
 
-                // Allow all API and WebSocket requests
+                // Allow API and WebSocket access during development
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/api/**").permitAll()
                         .requestMatchers("/ws/**").permitAll()
