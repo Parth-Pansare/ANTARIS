@@ -1,0 +1,9 @@
+maintenance_id,station_code,equipment_code,equipment_name,maintenance_type,status,scheduled_date,completed_date,description,data_source
+MT-MA-001,MAITRI,GEN-M01,Diesel Generator 1,PREVENTIVE,COMPLETED,2016-01-11,,Development/simulation maintenance event; not a historical station record.,SIMULATED_OPERATIONAL
+MT-MA-002,MAITRI,GEN-M02,Diesel Generator 2,INSPECTION,SCHEDULED,2016-01-18,,Development/simulation maintenance event; not a historical station record.,SIMULATED_OPERATIONAL
+MT-MA-003,MAITRI,HTR-M01,Main Heating System,PREVENTIVE,SCHEDULED,2016-01-25,,Development/simulation maintenance event; not a historical station record.,SIMULATED_OPERATIONAL
+MT-MA-004,MAITRI,COM-M01,Satellite Communication System,INSPECTION,COMPLETED,2016-02-01,,Development/simulation maintenance event; not a historical station record.,SIMULATED_OPERATIONAL
+MT-BH-001,BHARATI,GEN-B01,Diesel Generator 1,PREVENTIVE,COMPLETED,2026-01-11,,Development/simulation maintenance event; not a historical station record.,SIMULATED_OPERATIONAL
+MT-BH-002,BHARATI,GEN-B02,Diesel Generator 2,INSPECTION,SCHEDULED,2026-01-18,,Development/simulation maintenance event; not a historical station record.,SIMULATED_OPERATIONAL
+MT-BH-003,BHARATI,HTR-B01,Main Heating System,PREVENTIVE,SCHEDULED,2026-01-25,,Development/simulation maintenance event; not a historical station record.,SIMULATED_OPERATIONAL
+MT-BH-004,BHARATI,WTR-B01,Water Processing System,INSPECTION,COMPLETED,2026-02-01,,Development/simulation maintenance event; not a historical station record.,SIMULATED_OPERATIONAL

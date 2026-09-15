@@ -1,0 +1,203 @@
+{
+  "01_station_environment_telemetry.csv": {
+    "rows": 10319,
+    "columns": 9,
+    "columns_list": [
+      "timestamp",
+      "station_code",
+      "temperature_c",
+      "air_pressure_hpa",
+      "humidity_pct",
+      "wind_speed_source_unit",
+      "wind_direction_deg",
+      "wind_resource_index",
+      "data_source"
+    ]
+  },
+  "02_station_energy_telemetry.csv": {
+    "rows": 10319,
+    "columns": 13,
+    "columns_list": [
+      "timestamp",
+      "station_code",
+      "solar_generation_kw",
+      "wind_generation_kw",
+      "generator_generation_kw",
+      "total_generation_kw",
+      "total_consumption_kw",
+      "power_balance_kw",
+      "battery_level_kwh",
+      "battery_percentage",
+      "generator_load_pct",
+      "generator_efficiency_pct",
+      "data_source"
+    ]
+  },
+  "03_station_fuel_telemetry.csv": {
+    "rows": 10319,
+    "columns": 11,
+    "columns_list": [
+      "timestamp",
+      "station_code",
+      "fuel_level_l",
+      "fuel_capacity_l",
+      "fuel_percentage",
+      "fuel_consumption_rate_lph",
+      "daily_fuel_consumption_lpd",
+      "estimated_runtime_hours",
+      "fuel_refill_event",
+      "fuel_refill_quantity_l",
+      "data_source"
+    ]
+  },
+  "04_equipment_telemetry.csv": {
+    "rows": 41276,
+    "columns": 13,
+    "columns_list": [
+      "timestamp",
+      "station_code",
+      "equipment_code",
+      "equipment_type",
+      "equipment_name",
+      "status",
+      "health_score",
+      "load_percentage",
+      "equipment_temperature_c",
+      "runtime_hours",
+      "vibration_level",
+      "fault_code",
+      "data_source"
+    ]
+  },
+  "05_station_operations_telemetry.csv": {
+    "rows": 10319,
+    "columns": 14,
+    "columns_list": [
+      "timestamp",
+      "station_code",
+      "crew_count",
+      "crew_capacity",
+      "crew_utilization_pct",
+      "crew_on_duty",
+      "crew_off_duty",
+      "water_consumption_lph",
+      "food_consumption_kg_day",
+      "network_latency_ms",
+      "bandwidth_usage_pct",
+      "connection_uptime_pct",
+      "communication_status",
+      "data_source"
+    ]
+  },
+  "06_inventory_logistics_telemetry.csv": {
+    "rows": 1724,
+    "columns": 14,
+    "columns_list": [
+      "date",
+      "station_code",
+      "item_code",
+      "category",
+      "item_name",
+      "quantity",
+      "unit",
+      "minimum_required",
+      "daily_usage",
+      "days_remaining",
+      "resupply_event",
+      "resupply_quantity",
+      "inventory_status",
+      "data_source"
+    ]
+  },
+  "07_maintenance_events.csv": {
+    "rows": 8,
+    "columns": 10,
+    "columns_list": [
+      "maintenance_id",
+      "station_code",
+      "equipment_code",
+      "equipment_name",
+      "maintenance_type",
+      "status",
+      "scheduled_date",
+      "completed_date",
+      "description",
+      "data_source"
+    ]
+  },
+  "08_alert_events.csv": {
+    "rows": 13533,
+    "columns": 9,
+    "columns_list": [
+      "timestamp",
+      "station_code",
+      "alert_type",
+      "severity",
+      "title",
+      "message",
+      "source",
+      "acknowledged",
+      "data_source"
+    ]
+  },
+  "09_station_ml_features.csv": {
+    "rows": 10319,
+    "columns": 28,
+    "columns_list": [
+      "timestamp",
+      "station_code",
+      "temperature_c",
+      "air_pressure_hpa",
+      "humidity_pct",
+      "wind_speed_source_unit",
+      "wind_direction_deg",
+      "wind_resource_index",
+      "data_source",
+      "total_consumption_kw",
+      "generator_load_pct",
+      "battery_percentage",
+      "fuel_percentage",
+      "fuel_consumption_rate_lph",
+      "estimated_runtime_hours",
+      "temperature_c_change_1h",
+      "temperature_c_rolling_6h_mean",
+      "total_consumption_kw_change_1h",
+      "total_consumption_kw_rolling_6h_mean",
+      "generator_load_pct_change_1h",
+      "generator_load_pct_rolling_6h_mean",
+      "battery_percentage_change_1h",
+      "battery_percentage_rolling_6h_mean",
+      "fuel_percentage_change_1h",
+      "fuel_percentage_rolling_6h_mean",
+      "fuel_consumption_rate_lph_change_1h",
+      "fuel_consumption_rate_lph_rolling_6h_mean",
+      "hours_since_timestamp_start"
+    ]
+  },
+  "source_bharati_aws_2026_cleaned.csv": {
+    "rows": 100000,
+    "columns": 7,
+    "columns_list": [
+      "obstime",
+      "station_code",
+      "tempr",
+      "ap",
+      "ws",
+      "wd",
+      "rh"
+    ]
+  },
+  "source_maitri_aws_2016_cleaned.csv": {
+    "rows": 8285,
+    "columns": 7,
+    "columns_list": [
+      "obstime",
+      "station_code",
+      "tempr",
+      "ap",
+      "ws",
+      "wd",
+      "rh"
+    ]
+  }
+}
