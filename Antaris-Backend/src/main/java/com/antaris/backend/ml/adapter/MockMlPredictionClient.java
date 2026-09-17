@@ -96,13 +96,6 @@ public class MockMlPredictionClient implements MlPredictionClient {
                     features.getTemperatureC();
         }
 
-        /*
-         * Temporary mock environment forecast.
-         *
-         * Predicts a small temperature change over the
-         * requested horizon. The real ML model will
-         * replace this later.
-         */
         double predictedTemperature =
                 currentTemperature
                         - (0.20 * request.getHorizonHours());
@@ -119,6 +112,49 @@ public class MockMlPredictionClient implements MlPredictionClient {
                 "°C",
                 request.getHorizonHours(),
                 "MOCK-ENVIRONMENT-V1"
+        );
+    }
+
+    @Override
+    public PredictionResponse predictEquipment(
+            PredictionRequest request
+    ) {
+
+        PredictionFeatures features = request.getFeatures();
+
+        double generatorLoad = 0.0;
+
+        if (features != null
+                && features.getGeneratorLoadPct() != null) {
+
+            generatorLoad =
+                    features.getGeneratorLoadPct();
+        }
+
+        /*
+         * Temporary mock anomaly score.
+         *
+         * Higher generator load produces a higher
+         * equipment anomaly score.
+         *
+         * Real ML anomaly detection will replace
+         * this calculation later.
+         */
+        double anomalyScore =
+                Math.min(1.0, generatorLoad / 100.0);
+
+        anomalyScore =
+                Math.round(
+                        anomalyScore * 100.0
+                ) / 100.0;
+
+        return new PredictionResponse(
+                request.getStation(),
+                "EQUIPMENT_ANOMALY",
+                anomalyScore,
+                "score",
+                request.getHorizonHours(),
+                "MOCK-EQUIPMENT-V1"
         );
     }
 }

@@ -23,9 +23,11 @@ public class PredictionService {
     private final PredictionRepository predictionRepository;
     private final StationRepository stationRepository;
     private final TelemetrySimulatorService telemetrySimulatorService;
+
     private final EnergyPredictionFeatureBuilder energyFeatureBuilder;
     private final FuelPredictionFeatureBuilder fuelFeatureBuilder;
     private final EnvironmentPredictionFeatureBuilder environmentFeatureBuilder;
+    private final EquipmentPredictionFeatureBuilder equipmentFeatureBuilder;
 
     public PredictionService(
             MlPredictionClient mlPredictionClient,
@@ -34,7 +36,8 @@ public class PredictionService {
             TelemetrySimulatorService telemetrySimulatorService,
             EnergyPredictionFeatureBuilder energyFeatureBuilder,
             FuelPredictionFeatureBuilder fuelFeatureBuilder,
-            EnvironmentPredictionFeatureBuilder environmentFeatureBuilder
+            EnvironmentPredictionFeatureBuilder environmentFeatureBuilder,
+            EquipmentPredictionFeatureBuilder equipmentFeatureBuilder
     ) {
         this.mlPredictionClient = mlPredictionClient;
         this.predictionRepository = predictionRepository;
@@ -43,6 +46,7 @@ public class PredictionService {
         this.energyFeatureBuilder = energyFeatureBuilder;
         this.fuelFeatureBuilder = fuelFeatureBuilder;
         this.environmentFeatureBuilder = environmentFeatureBuilder;
+        this.equipmentFeatureBuilder = equipmentFeatureBuilder;
     }
 
     // ============================================================
@@ -175,6 +179,49 @@ public class PredictionService {
     }
 
     // ============================================================
+    // EQUIPMENT ANOMALY PREDICTION
+    // ============================================================
+
+    public PredictionResponse predictEquipment(
+            PredictionRequest request
+    ) {
+
+        validateRequest(request);
+        validateStation(request.getStation());
+
+        PredictionResponse response =
+                mlPredictionClient.predictEquipment(request);
+
+        validatePredictionResponse(
+                response,
+                request,
+                "EQUIPMENT_ANOMALY"
+        );
+
+        savePrediction(request, response);
+
+        return response;
+    }
+
+    public PredictionResponse predictCurrentEquipment(
+            int horizonHours
+    ) {
+
+        validateHorizon(horizonHours);
+
+        TelemetrySnapshot snapshot =
+                telemetrySimulatorService.getCurrentSnapshot();
+
+        PredictionRequest request =
+                equipmentFeatureBuilder.buildRequest(
+                        snapshot,
+                        horizonHours
+                );
+
+        return predictEquipment(request);
+    }
+
+    // ============================================================
     // ENERGY HISTORY
     // ============================================================
 
@@ -233,6 +280,28 @@ public class PredictionService {
                         .findByStationIdAndPredictionTypeOrderByPredictionTimestampDesc(
                                 stationId,
                                 "TEMPERATURE"
+                        );
+
+        return predictions.stream()
+                .map(this::toHistoryResponse)
+                .toList();
+    }
+
+    // ============================================================
+    // EQUIPMENT HISTORY
+    // ============================================================
+
+    public List<PredictionHistoryResponse> getEquipmentPredictionHistory(
+            Long stationId
+    ) {
+
+        validateStationId(stationId);
+
+        List<Prediction> predictions =
+                predictionRepository
+                        .findByStationIdAndPredictionTypeOrderByPredictionTimestampDesc(
+                                stationId,
+                                "EQUIPMENT_ANOMALY"
                         );
 
         return predictions.stream()
@@ -486,8 +555,9 @@ public class PredictionService {
 
         /*
          * Temperature can legitimately be negative.
-         * Therefore, negative values are rejected only for
-         * energy and fuel predictions.
+         *
+         * Energy, fuel and equipment anomaly predictions
+         * must not return negative values.
          */
         if (!"TEMPERATURE".equals(expectedPredictionType)
                 && response.getPredictedValue() < 0) {

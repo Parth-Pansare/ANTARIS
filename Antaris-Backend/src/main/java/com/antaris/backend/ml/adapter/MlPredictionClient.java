@@ -16,4 +16,8 @@ public interface MlPredictionClient {
     PredictionResponse predictEnvironment(
             PredictionRequest request
     );
+
+    PredictionResponse predictEquipment(
+            PredictionRequest request
+    );
 }

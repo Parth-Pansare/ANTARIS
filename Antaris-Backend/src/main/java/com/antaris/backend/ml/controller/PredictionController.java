@@ -135,4 +135,34 @@ public class PredictionController {
                         .getEnvironmentPredictionHistory(stationId)
         );
     }
+
+    // EQUIPMENT ANOMALY
+
+    @PostMapping("/equipment")
+    public ResponseEntity<PredictionResponse> predictEquipment(
+            @RequestBody PredictionRequest request
+    ) {
+        return ResponseEntity.ok(
+                predictionService.predictEquipment(request)
+        );
+    }
+
+    @PostMapping("/equipment/current")
+    public ResponseEntity<PredictionResponse> predictCurrentEquipment(
+            @RequestParam(defaultValue = "1") int horizonHours
+    ) {
+        return ResponseEntity.ok(
+                predictionService.predictCurrentEquipment(horizonHours)
+        );
+    }
+
+    @GetMapping("/equipment/history/{stationId}")
+    public ResponseEntity<List<PredictionHistoryResponse>>
+    getEquipmentPredictionHistory(
+            @PathVariable Long stationId
+    ) {
+        return ResponseEntity.ok(
+                predictionService.getEquipmentPredictionHistory(stationId)
+        );
+    }
 }
