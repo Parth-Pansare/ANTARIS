@@ -25,6 +25,7 @@ public class PredictionService {
     private final TelemetrySimulatorService telemetrySimulatorService;
     private final EnergyPredictionFeatureBuilder energyFeatureBuilder;
     private final FuelPredictionFeatureBuilder fuelFeatureBuilder;
+    private final EnvironmentPredictionFeatureBuilder environmentFeatureBuilder;
 
     public PredictionService(
             MlPredictionClient mlPredictionClient,
@@ -32,7 +33,8 @@ public class PredictionService {
             StationRepository stationRepository,
             TelemetrySimulatorService telemetrySimulatorService,
             EnergyPredictionFeatureBuilder energyFeatureBuilder,
-            FuelPredictionFeatureBuilder fuelFeatureBuilder
+            FuelPredictionFeatureBuilder fuelFeatureBuilder,
+            EnvironmentPredictionFeatureBuilder environmentFeatureBuilder
     ) {
         this.mlPredictionClient = mlPredictionClient;
         this.predictionRepository = predictionRepository;
@@ -40,6 +42,7 @@ public class PredictionService {
         this.telemetrySimulatorService = telemetrySimulatorService;
         this.energyFeatureBuilder = energyFeatureBuilder;
         this.fuelFeatureBuilder = fuelFeatureBuilder;
+        this.environmentFeatureBuilder = environmentFeatureBuilder;
     }
 
     // ============================================================
@@ -51,7 +54,6 @@ public class PredictionService {
     ) {
 
         validateRequest(request);
-
         validateStation(request.getStation());
 
         PredictionResponse response =
@@ -95,7 +97,6 @@ public class PredictionService {
     ) {
 
         validateRequest(request);
-
         validateStation(request.getStation());
 
         PredictionResponse response =
@@ -128,6 +129,49 @@ public class PredictionService {
                 );
 
         return predictFuel(request);
+    }
+
+    // ============================================================
+    // ENVIRONMENT PREDICTION
+    // ============================================================
+
+    public PredictionResponse predictEnvironment(
+            PredictionRequest request
+    ) {
+
+        validateRequest(request);
+        validateStation(request.getStation());
+
+        PredictionResponse response =
+                mlPredictionClient.predictEnvironment(request);
+
+        validatePredictionResponse(
+                response,
+                request,
+                "TEMPERATURE"
+        );
+
+        savePrediction(request, response);
+
+        return response;
+    }
+
+    public PredictionResponse predictCurrentEnvironment(
+            int horizonHours
+    ) {
+
+        validateHorizon(horizonHours);
+
+        TelemetrySnapshot snapshot =
+                telemetrySimulatorService.getCurrentSnapshot();
+
+        PredictionRequest request =
+                environmentFeatureBuilder.buildRequest(
+                        snapshot,
+                        horizonHours
+                );
+
+        return predictEnvironment(request);
     }
 
     // ============================================================
@@ -167,6 +211,28 @@ public class PredictionService {
                         .findByStationIdAndPredictionTypeOrderByPredictionTimestampDesc(
                                 stationId,
                                 "FUEL_LEVEL"
+                        );
+
+        return predictions.stream()
+                .map(this::toHistoryResponse)
+                .toList();
+    }
+
+    // ============================================================
+    // ENVIRONMENT HISTORY
+    // ============================================================
+
+    public List<PredictionHistoryResponse> getEnvironmentPredictionHistory(
+            Long stationId
+    ) {
+
+        validateStationId(stationId);
+
+        List<Prediction> predictions =
+                predictionRepository
+                        .findByStationIdAndPredictionTypeOrderByPredictionTimestampDesc(
+                                stationId,
+                                "TEMPERATURE"
                         );
 
         return predictions.stream()
@@ -418,7 +484,13 @@ public class PredictionService {
             );
         }
 
-        if (response.getPredictedValue() < 0) {
+        /*
+         * Temperature can legitimately be negative.
+         * Therefore, negative values are rejected only for
+         * energy and fuel predictions.
+         */
+        if (!"TEMPERATURE".equals(expectedPredictionType)
+                && response.getPredictedValue() < 0) {
 
             throw new IllegalStateException(
                     "ML provider returned a negative prediction"

@@ -58,14 +58,6 @@ public class MockMlPredictionClient implements MlPredictionClient {
                     features.getFuelPercentage();
         }
 
-        /*
-         * Mock fuel prediction:
-         * Predict a small decrease in fuel percentage
-         * based on the requested prediction horizon.
-         *
-         * This is only a temporary mock model.
-         * The real ML model will replace this later.
-         */
         double predictedFuelPercentage =
                 currentFuelPercentage
                         - (0.15 * request.getHorizonHours());
@@ -85,6 +77,48 @@ public class MockMlPredictionClient implements MlPredictionClient {
                 "%",
                 request.getHorizonHours(),
                 "MOCK-FUEL-V1"
+        );
+    }
+
+    @Override
+    public PredictionResponse predictEnvironment(
+            PredictionRequest request
+    ) {
+
+        PredictionFeatures features = request.getFeatures();
+
+        double currentTemperature = 0.0;
+
+        if (features != null
+                && features.getTemperatureC() != null) {
+
+            currentTemperature =
+                    features.getTemperatureC();
+        }
+
+        /*
+         * Temporary mock environment forecast.
+         *
+         * Predicts a small temperature change over the
+         * requested horizon. The real ML model will
+         * replace this later.
+         */
+        double predictedTemperature =
+                currentTemperature
+                        - (0.20 * request.getHorizonHours());
+
+        predictedTemperature =
+                Math.round(
+                        predictedTemperature * 100.0
+                ) / 100.0;
+
+        return new PredictionResponse(
+                request.getStation(),
+                "TEMPERATURE",
+                predictedTemperature,
+                "°C",
+                request.getHorizonHours(),
+                "MOCK-ENVIRONMENT-V1"
         );
     }
 }

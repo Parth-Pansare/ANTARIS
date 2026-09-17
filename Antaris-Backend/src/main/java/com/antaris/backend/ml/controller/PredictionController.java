@@ -97,4 +97,42 @@ public class PredictionController {
                         .getFuelPredictionHistory(stationId)
         );
     }
+
+    // ============================================================
+    // ENVIRONMENT PREDICTION
+    // ============================================================
+
+    @PostMapping("/environment")
+    public ResponseEntity<PredictionResponse> predictEnvironment(
+            @RequestBody PredictionRequest request
+    ) {
+
+        return ResponseEntity.ok(
+                predictionService.predictEnvironment(request)
+        );
+    }
+
+    @PostMapping("/environment/current")
+    public ResponseEntity<PredictionResponse> predictCurrentEnvironment(
+            @RequestParam(defaultValue = "1") int horizonHours
+    ) {
+
+        return ResponseEntity.ok(
+                predictionService.predictCurrentEnvironment(
+                        horizonHours
+                )
+        );
+    }
+
+    @GetMapping("/environment/history/{stationId}")
+    public ResponseEntity<List<PredictionHistoryResponse>>
+    getEnvironmentPredictionHistory(
+            @PathVariable Long stationId
+    ) {
+
+        return ResponseEntity.ok(
+                predictionService
+                        .getEnvironmentPredictionHistory(stationId)
+        );
+    }
 }

@@ -12,4 +12,8 @@ public interface MlPredictionClient {
     PredictionResponse predictFuel(
             PredictionRequest request
     );
+
+    PredictionResponse predictEnvironment(
+            PredictionRequest request
+    );
 }
