@@ -8,4 +8,8 @@ public interface MlPredictionClient {
     PredictionResponse predictEnergy(
             PredictionRequest request
     );
+
+    PredictionResponse predictFuel(
+            PredictionRequest request
+    );
 }

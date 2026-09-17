@@ -23,21 +23,28 @@ public class PredictionService {
     private final PredictionRepository predictionRepository;
     private final StationRepository stationRepository;
     private final TelemetrySimulatorService telemetrySimulatorService;
-    private final EnergyPredictionFeatureBuilder featureBuilder;
+    private final EnergyPredictionFeatureBuilder energyFeatureBuilder;
+    private final FuelPredictionFeatureBuilder fuelFeatureBuilder;
 
     public PredictionService(
             MlPredictionClient mlPredictionClient,
             PredictionRepository predictionRepository,
             StationRepository stationRepository,
             TelemetrySimulatorService telemetrySimulatorService,
-            EnergyPredictionFeatureBuilder featureBuilder
+            EnergyPredictionFeatureBuilder energyFeatureBuilder,
+            FuelPredictionFeatureBuilder fuelFeatureBuilder
     ) {
         this.mlPredictionClient = mlPredictionClient;
         this.predictionRepository = predictionRepository;
         this.stationRepository = stationRepository;
         this.telemetrySimulatorService = telemetrySimulatorService;
-        this.featureBuilder = featureBuilder;
+        this.energyFeatureBuilder = energyFeatureBuilder;
+        this.fuelFeatureBuilder = fuelFeatureBuilder;
     }
+
+    // ============================================================
+    // ENERGY PREDICTION
+    // ============================================================
 
     public PredictionResponse predictEnergy(
             PredictionRequest request
@@ -50,7 +57,11 @@ public class PredictionService {
         PredictionResponse response =
                 mlPredictionClient.predictEnergy(request);
 
-        validatePredictionResponse(response, request);
+        validatePredictionResponse(
+                response,
+                request,
+                "ENERGY_CONSUMPTION"
+        );
 
         savePrediction(request, response);
 
@@ -61,23 +72,13 @@ public class PredictionService {
             int horizonHours
     ) {
 
-        if (horizonHours <= 0) {
-            throw new IllegalArgumentException(
-                    "Horizon hours must be greater than zero"
-            );
-        }
-
-        if (horizonHours > 168) {
-            throw new IllegalArgumentException(
-                    "Horizon hours cannot exceed 168 hours"
-            );
-        }
+        validateHorizon(horizonHours);
 
         TelemetrySnapshot snapshot =
                 telemetrySimulatorService.getCurrentSnapshot();
 
         PredictionRequest request =
-                featureBuilder.buildRequest(
+                energyFeatureBuilder.buildRequest(
                         snapshot,
                         horizonHours
                 );
@@ -85,15 +86,59 @@ public class PredictionService {
         return predictEnergy(request);
     }
 
+    // ============================================================
+    // FUEL PREDICTION
+    // ============================================================
+
+    public PredictionResponse predictFuel(
+            PredictionRequest request
+    ) {
+
+        validateRequest(request);
+
+        validateStation(request.getStation());
+
+        PredictionResponse response =
+                mlPredictionClient.predictFuel(request);
+
+        validatePredictionResponse(
+                response,
+                request,
+                "FUEL_LEVEL"
+        );
+
+        savePrediction(request, response);
+
+        return response;
+    }
+
+    public PredictionResponse predictCurrentFuel(
+            int horizonHours
+    ) {
+
+        validateHorizon(horizonHours);
+
+        TelemetrySnapshot snapshot =
+                telemetrySimulatorService.getCurrentSnapshot();
+
+        PredictionRequest request =
+                fuelFeatureBuilder.buildRequest(
+                        snapshot,
+                        horizonHours
+                );
+
+        return predictFuel(request);
+    }
+
+    // ============================================================
+    // ENERGY HISTORY
+    // ============================================================
+
     public List<PredictionHistoryResponse> getEnergyPredictionHistory(
             Long stationId
     ) {
 
-        if (stationId == null || stationId <= 0) {
-            throw new IllegalArgumentException(
-                    "Station ID must be greater than zero"
-            );
-        }
+        validateStationId(stationId);
 
         List<Prediction> predictions =
                 predictionRepository
@@ -106,6 +151,32 @@ public class PredictionService {
                 .map(this::toHistoryResponse)
                 .toList();
     }
+
+    // ============================================================
+    // FUEL HISTORY
+    // ============================================================
+
+    public List<PredictionHistoryResponse> getFuelPredictionHistory(
+            Long stationId
+    ) {
+
+        validateStationId(stationId);
+
+        List<Prediction> predictions =
+                predictionRepository
+                        .findByStationIdAndPredictionTypeOrderByPredictionTimestampDesc(
+                                stationId,
+                                "FUEL_LEVEL"
+                        );
+
+        return predictions.stream()
+                .map(this::toHistoryResponse)
+                .toList();
+    }
+
+    // ============================================================
+    // REQUEST VALIDATION
+    // ============================================================
 
     private void validateRequest(
             PredictionRequest request
@@ -158,6 +229,23 @@ public class PredictionService {
         }
 
         validateFeatures(request);
+    }
+
+    private void validateHorizon(
+            int horizonHours
+    ) {
+
+        if (horizonHours <= 0) {
+            throw new IllegalArgumentException(
+                    "Horizon hours must be greater than zero"
+            );
+        }
+
+        if (horizonHours > 168) {
+            throw new IllegalArgumentException(
+                    "Horizon hours cannot exceed 168 hours"
+            );
+        }
     }
 
     private void validateFeatures(
@@ -255,12 +343,18 @@ public class PredictionService {
         }
     }
 
+    // ============================================================
+    // TIMESTAMP VALIDATION
+    // ============================================================
+
     private void validateTimestamp(
             String timestamp
     ) {
 
         try {
+
             LocalDateTime.parse(timestamp);
+
         } catch (DateTimeParseException exception) {
 
             throw new IllegalArgumentException(
@@ -269,6 +363,10 @@ public class PredictionService {
             );
         }
     }
+
+    // ============================================================
+    // STATION VALIDATION
+    // ============================================================
 
     private void validateStation(
             String stationCode
@@ -284,9 +382,26 @@ public class PredictionService {
                 );
     }
 
+    private void validateStationId(
+            Long stationId
+    ) {
+
+        if (stationId == null || stationId <= 0) {
+
+            throw new IllegalArgumentException(
+                    "Station ID must be greater than zero"
+            );
+        }
+    }
+
+    // ============================================================
+    // ML RESPONSE VALIDATION
+    // ============================================================
+
     private void validatePredictionResponse(
             PredictionResponse response,
-            PredictionRequest request
+            PredictionRequest request,
+            String expectedPredictionType
     ) {
 
         if (response == null) {
@@ -306,7 +421,7 @@ public class PredictionService {
         if (response.getPredictedValue() < 0) {
 
             throw new IllegalStateException(
-                    "ML provider returned a negative energy prediction"
+                    "ML provider returned a negative prediction"
             );
         }
 
@@ -318,7 +433,7 @@ public class PredictionService {
             );
         }
 
-        if (!"ENERGY_CONSUMPTION".equals(
+        if (!expectedPredictionType.equals(
                 response.getPredictionType()
         )) {
 
@@ -362,6 +477,10 @@ public class PredictionService {
         }
     }
 
+    // ============================================================
+    // DATABASE PERSISTENCE
+    // ============================================================
+
     private void savePrediction(
             PredictionRequest request,
             PredictionResponse response
@@ -380,10 +499,12 @@ public class PredictionService {
         LocalDateTime predictionTimestamp;
 
         try {
+
             predictionTimestamp =
                     LocalDateTime.parse(
                             request.getTimestamp()
                     );
+
         } catch (DateTimeParseException exception) {
 
             throw new IllegalArgumentException(
@@ -392,33 +513,45 @@ public class PredictionService {
             );
         }
 
-        Prediction prediction = new Prediction();
+        Prediction prediction =
+                new Prediction();
 
         prediction.setStation(station);
+
         prediction.setPredictionType(
                 response.getPredictionType()
         );
+
         prediction.setPredictedValue(
                 response.getPredictedValue()
         );
+
         prediction.setUnit(
                 response.getUnit()
         );
+
         prediction.setHorizonHours(
                 response.getHorizonHours()
         );
+
         prediction.setModelVersion(
                 response.getModelVersion()
         );
+
         prediction.setPredictionTimestamp(
                 predictionTimestamp
         );
+
         prediction.setCreatedAt(
                 LocalDateTime.now()
         );
 
         predictionRepository.save(prediction);
     }
+
+    // ============================================================
+    // HISTORY RESPONSE
+    // ============================================================
 
     private PredictionHistoryResponse toHistoryResponse(
             Prediction prediction

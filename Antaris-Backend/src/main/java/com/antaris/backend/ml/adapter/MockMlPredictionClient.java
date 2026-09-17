@@ -41,4 +41,50 @@ public class MockMlPredictionClient implements MlPredictionClient {
                 "MOCK-ENERGY-V1"
         );
     }
+
+    @Override
+    public PredictionResponse predictFuel(
+            PredictionRequest request
+    ) {
+
+        PredictionFeatures features = request.getFeatures();
+
+        double currentFuelPercentage = 0.0;
+
+        if (features != null
+                && features.getFuelPercentage() != null) {
+
+            currentFuelPercentage =
+                    features.getFuelPercentage();
+        }
+
+        /*
+         * Mock fuel prediction:
+         * Predict a small decrease in fuel percentage
+         * based on the requested prediction horizon.
+         *
+         * This is only a temporary mock model.
+         * The real ML model will replace this later.
+         */
+        double predictedFuelPercentage =
+                currentFuelPercentage
+                        - (0.15 * request.getHorizonHours());
+
+        predictedFuelPercentage =
+                Math.max(0.0, predictedFuelPercentage);
+
+        predictedFuelPercentage =
+                Math.round(
+                        predictedFuelPercentage * 100.0
+                ) / 100.0;
+
+        return new PredictionResponse(
+                request.getStation(),
+                "FUEL_LEVEL",
+                predictedFuelPercentage,
+                "%",
+                request.getHorizonHours(),
+                "MOCK-FUEL-V1"
+        );
+    }
 }

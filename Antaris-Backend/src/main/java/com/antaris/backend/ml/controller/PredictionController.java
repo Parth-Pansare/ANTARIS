@@ -22,6 +22,10 @@ public class PredictionController {
         this.predictionService = predictionService;
     }
 
+    // ============================================================
+    // ENERGY PREDICTION
+    // ============================================================
+
     @PostMapping("/energy")
     public ResponseEntity<PredictionResponse> predictEnergy(
             @RequestBody PredictionRequest request
@@ -53,6 +57,44 @@ public class PredictionController {
         return ResponseEntity.ok(
                 predictionService
                         .getEnergyPredictionHistory(stationId)
+        );
+    }
+
+    // ============================================================
+    // FUEL PREDICTION
+    // ============================================================
+
+    @PostMapping("/fuel")
+    public ResponseEntity<PredictionResponse> predictFuel(
+            @RequestBody PredictionRequest request
+    ) {
+
+        return ResponseEntity.ok(
+                predictionService.predictFuel(request)
+        );
+    }
+
+    @PostMapping("/fuel/current")
+    public ResponseEntity<PredictionResponse> predictCurrentFuel(
+            @RequestParam(defaultValue = "1") int horizonHours
+    ) {
+
+        return ResponseEntity.ok(
+                predictionService.predictCurrentFuel(
+                        horizonHours
+                )
+        );
+    }
+
+    @GetMapping("/fuel/history/{stationId}")
+    public ResponseEntity<List<PredictionHistoryResponse>>
+    getFuelPredictionHistory(
+            @PathVariable Long stationId
+    ) {
+
+        return ResponseEntity.ok(
+                predictionService
+                        .getFuelPredictionHistory(stationId)
         );
     }
 }
