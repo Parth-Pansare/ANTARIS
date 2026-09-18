@@ -5,6 +5,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDateTime;
 import java.util.LinkedHashMap;
@@ -12,6 +13,32 @@ import java.util.Map;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
+
+    // ============================================================
+    // RESOURCE / HTTP STATUS ERRORS
+    // ============================================================
+
+    @ExceptionHandler(ResponseStatusException.class)
+    public ResponseEntity<Map<String, Object>> handleResponseStatusException(
+            ResponseStatusException exception
+    ) {
+
+        HttpStatus status =
+                HttpStatus.valueOf(
+                        exception.getStatusCode().value()
+                );
+
+        String message =
+                exception.getReason() != null
+                        ? exception.getReason()
+                        : status.getReasonPhrase();
+
+        return buildResponse(
+                status,
+                status.getReasonPhrase(),
+                message
+        );
+    }
 
     // ============================================================
     // CLIENT VALIDATION ERRORS

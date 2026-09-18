@@ -6,7 +6,9 @@ import com.antaris.backend.simulation.dto.ScenarioChangeRequest;
 import com.antaris.backend.simulation.dto.ScenarioRequest;
 import com.antaris.backend.simulation.entity.SimulationScenarioEntity;
 import com.antaris.backend.simulation.repository.SimulationScenarioRepository;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -101,7 +103,8 @@ public class SimulationScenarioService {
 
         return scenarioRepository.findById(id)
                 .orElseThrow(() ->
-                        new RuntimeException(
+                        new ResponseStatusException(
+                                HttpStatus.NOT_FOUND,
                                 "Simulation scenario not found with id: "
                                         + id
                         )
@@ -131,7 +134,8 @@ public class SimulationScenarioService {
 
         if (!scenarioRepository.existsById(id)) {
 
-            throw new RuntimeException(
+            throw new ResponseStatusException(
+                    HttpStatus.NOT_FOUND,
                     "Simulation scenario not found with id: "
                             + id
             );
