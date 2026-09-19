@@ -18,15 +18,21 @@ public class CurrentStateSnapshotService {
     }
 
     /**
-     * Returns an independent copy of the current
-     * telemetry state for simulation.
+     * Returns an independent copy of the current telemetry state
+     * for the requested station.
      *
-     * The original telemetry snapshot is never modified.
+     * The global simulator station is never changed.
      */
-    public SimulationState getCurrentState() {
+    public SimulationState getCurrentState(String stationCode) {
+
+        if (stationCode == null || stationCode.isBlank()) {
+            throw new IllegalArgumentException(
+                    "Station code cannot be null or blank."
+            );
+        }
 
         TelemetrySnapshot currentSnapshot =
-                telemetrySimulatorService.getCurrentSnapshot();
+                telemetrySimulatorService.getCurrentSnapshot(stationCode);
 
         return new SimulationState(
                 copySnapshot(currentSnapshot)

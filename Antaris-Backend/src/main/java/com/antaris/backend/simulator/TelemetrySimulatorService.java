@@ -8,9 +8,9 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
+
 import com.antaris.backend.websocket.TelemetryUpdatedEvent;
 import org.springframework.context.ApplicationEventPublisher;
-import com.antaris.backend.service.AlertEngineService;
 
 @Service
 public class TelemetrySimulatorService {
@@ -18,14 +18,14 @@ public class TelemetrySimulatorService {
     private final TelemetrySnapshotBuilder snapshotBuilder;
     private final ApplicationEventPublisher eventPublisher;
 
-
-
     private final ScheduledExecutorService scheduler =
             Executors.newSingleThreadScheduledExecutor();
 
-    private List<TelemetrySnapshot> allSnapshots = new ArrayList<>();
+    private List<TelemetrySnapshot> allSnapshots =
+            new ArrayList<>();
 
-    private List<TelemetrySnapshot> stationSnapshots = new ArrayList<>();
+    private List<TelemetrySnapshot> stationSnapshots =
+            new ArrayList<>();
 
     private int currentIndex = 0;
 
@@ -45,10 +45,6 @@ public class TelemetrySimulatorService {
         this.eventPublisher = eventPublisher;
     }
 
-
-
-
-
     /**
      * Loads all telemetry snapshots into memory.
      */
@@ -58,7 +54,8 @@ public class TelemetrySimulatorService {
             return;
         }
 
-        allSnapshots = snapshotBuilder.buildSnapshots();
+        allSnapshots =
+                snapshotBuilder.buildSnapshots();
 
         if (allSnapshots.isEmpty()) {
             throw new IllegalStateException(
@@ -76,21 +73,25 @@ public class TelemetrySimulatorService {
             String stationCode
     ) {
 
-        stationSnapshots = allSnapshots.stream()
-                .filter(snapshot ->
-                        stationCode.equalsIgnoreCase(
-                                snapshot.getStationCode()
+        stationSnapshots =
+                allSnapshots.stream()
+                        .filter(snapshot ->
+                                stationCode.equalsIgnoreCase(
+                                        snapshot.getStationCode()
+                                )
                         )
-                )
-                .toList();
+                        .toList();
 
         if (stationSnapshots.isEmpty()) {
             throw new IllegalArgumentException(
-                    "No telemetry found for station: " + stationCode
+                    "No telemetry found for station: "
+                            + stationCode
             );
         }
 
-        currentStation = stationCode.toUpperCase();
+        currentStation =
+                stationCode.toUpperCase();
+
         currentIndex = 0;
     }
 
@@ -99,12 +100,17 @@ public class TelemetrySimulatorService {
      *
      * One dataset hour is played every 5 seconds.
      */
-    public synchronized void start(String stationCode) {
+    public synchronized void start(
+            String stationCode
+    ) {
 
         loadSnapshotsIfNeeded();
 
-        if (stationCode != null && !stationCode.isBlank()
-                && !stationCode.equalsIgnoreCase(currentStation)) {
+        if (stationCode != null
+                && !stationCode.isBlank()
+                && !stationCode.equalsIgnoreCase(
+                currentStation
+        )) {
 
             selectStationSnapshots(stationCode);
         }
@@ -125,17 +131,23 @@ public class TelemetrySimulatorService {
         }
 
         long intervalMillis =
-                Math.max(100, Math.round(5000 / speed));
+                Math.max(
+                        100,
+                        Math.round(5000 / speed)
+                );
 
-        playbackTask = scheduler.scheduleAtFixedRate(
-                this::advance,
-                0,
-                intervalMillis,
-                TimeUnit.MILLISECONDS
-        );
+        playbackTask =
+                scheduler.scheduleAtFixedRate(
+                        this::advance,
+                        0,
+                        intervalMillis,
+                        TimeUnit.MILLISECONDS
+                );
     }
 
-    public synchronized void setSpeed(double newSpeed) {
+    public synchronized void setSpeed(
+            double newSpeed
+    ) {
 
         if (newSpeed <= 0) {
             throw new IllegalArgumentException(
@@ -173,7 +185,9 @@ public class TelemetrySimulatorService {
                 stationSnapshots.get(currentIndex);
 
         eventPublisher.publishEvent(
-                new TelemetryUpdatedEvent(currentSnapshot)
+                new TelemetryUpdatedEvent(
+                        currentSnapshot
+                )
         );
     }
 
@@ -219,7 +233,8 @@ public class TelemetrySimulatorService {
     }
 
     /**
-     * Returns the currently active telemetry snapshot.
+     * Returns the currently active telemetry snapshot
+     * for the globally selected simulator station.
      */
     public synchronized TelemetrySnapshot getCurrentSnapshot() {
 
@@ -232,6 +247,115 @@ public class TelemetrySimulatorService {
         }
 
         return stationSnapshots.get(currentIndex);
+    }
+
+    /**
+     * Returns a current telemetry snapshot for a specific
+     * station without changing the global simulator state.
+     *
+     * The method first attempts to find the requested station
+     * at the same timestamp as the currently selected global
+     * simulator snapshot. If no matching timestamp exists,
+     * the first available snapshot for that station is used.
+     *
+     * IMPORTANT:
+     * This method does NOT change:
+     *
+     * - currentStation
+     * - currentIndex
+     * - stationSnapshots
+     * - running state
+     */
+    public synchronized TelemetrySnapshot getCurrentSnapshot(
+            String stationCode
+    ) {
+
+        if (stationCode == null
+                || stationCode.isBlank()) {
+
+            throw new IllegalArgumentException(
+                    "Station code cannot be null or blank."
+            );
+        }
+
+        loadSnapshotsIfNeeded();
+
+        String requestedStation =
+                stationCode.trim().toUpperCase();
+
+        /*
+         * Ensure the requested station actually exists.
+         */
+        boolean stationExists =
+                allSnapshots.stream()
+                        .anyMatch(snapshot ->
+                                requestedStation.equalsIgnoreCase(
+                                        snapshot.getStationCode()
+                                )
+                        );
+
+        if (!stationExists) {
+            throw new IllegalArgumentException(
+                    "No telemetry found for station: "
+                            + requestedStation
+            );
+        }
+
+        /*
+         * Capture the currently active timestamp without
+         * modifying the global simulator state.
+         */
+        TelemetrySnapshot globalSnapshot =
+                stationSnapshots.isEmpty()
+                        ? null
+                        : stationSnapshots.get(currentIndex);
+
+        /*
+         * Prefer the requested station's snapshot at the
+         * same timestamp as the active simulator snapshot.
+         */
+        if (globalSnapshot != null
+                && globalSnapshot.getTimestamp() != null) {
+
+            TelemetrySnapshot matchingSnapshot =
+                    allSnapshots.stream()
+                            .filter(snapshot ->
+                                    requestedStation.equalsIgnoreCase(
+                                            snapshot.getStationCode()
+                                    )
+                            )
+                            .filter(snapshot ->
+                                    globalSnapshot.getTimestamp()
+                                            .equals(
+                                                    snapshot.getTimestamp()
+                                            )
+                            )
+                            .findFirst()
+                            .orElse(null);
+
+            if (matchingSnapshot != null) {
+                return matchingSnapshot;
+            }
+        }
+
+        /*
+         * Fallback:
+         * return the first available snapshot for the
+         * requested station.
+         */
+        return allSnapshots.stream()
+                .filter(snapshot ->
+                        requestedStation.equalsIgnoreCase(
+                                snapshot.getStationCode()
+                        )
+                )
+                .findFirst()
+                .orElseThrow(() ->
+                        new IllegalArgumentException(
+                                "No telemetry found for station: "
+                                        + requestedStation
+                        )
+                );
     }
 
     /**

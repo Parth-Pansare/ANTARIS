@@ -51,9 +51,14 @@ public class MultiVariableSimulationService {
 
     /**
      * Runs a multi-variable scenario against a copied
-     * current station state.
+     * station-specific current state.
      *
      * The actual station state is never modified.
+     *
+     * IMPORTANT:
+     * The scenario station is explicitly used to obtain
+     * the baseline state. The currently selected global
+     * simulator station does not affect this simulation.
      */
     public MultiVariableSimulationResult simulate(
             Station station,
@@ -82,18 +87,54 @@ public class MultiVariableSimulationService {
             );
         }
 
+        if (scenario.getStation() == null
+                || scenario.getStation().isBlank()) {
+
+            throw new IllegalArgumentException(
+                    "Scenario station cannot be null or blank."
+            );
+        }
+
+        if (!station.getCode().equalsIgnoreCase(
+                scenario.getStation()
+        )) {
+
+            throw new IllegalArgumentException(
+                    "Scenario station does not match the requested station."
+            );
+        }
+
         // =====================================================
-        // 1. CAPTURE CURRENT BASELINE STATE
+        // 1. CAPTURE STATION-SPECIFIC CURRENT BASELINE STATE
         // =====================================================
 
         SimulationState baseline =
-                currentStateSnapshotService.getCurrentState();
+                currentStateSnapshotService.getCurrentState(
+                        station.getCode()
+                );
 
         if (baseline == null
                 || baseline.getState() == null) {
 
             throw new IllegalStateException(
                     "Current station state could not be captured."
+            );
+        }
+
+        /*
+         * Verify that the telemetry snapshot actually belongs
+         * to the requested station.
+         */
+        String baselineStation =
+                baseline.getState().getStationCode();
+
+        if (baselineStation == null
+                || !station.getCode().equalsIgnoreCase(
+                baselineStation
+        )) {
+
+            throw new IllegalStateException(
+                    "Station-specific baseline state could not be resolved."
             );
         }
 
