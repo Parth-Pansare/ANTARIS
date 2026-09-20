@@ -23,11 +23,91 @@ public class ModelVersionService {
     // REGISTER MODEL VERSION
     // ============================================================
 
+    /**
+     * Registers or re-registers a model version.
+     *
+     * Model-version invariant:
+     * For every model type, exactly one version is active after
+     * registration.
+     *
+     * If the version already exists, it becomes the active version
+     * and all other versions of the same model type are deactivated.
+     *
+     * If the version is new, all existing active versions of the
+     * same model type are deactivated before the new version is
+     * created as active.
+     */
     @Transactional
     public ModelVersion registerModelVersion(
             String modelType,
             String version,
             String provider
+    ) {
+
+        validateModelDetails(
+                modelType,
+                version,
+                provider
+        );
+
+        ModelVersion modelVersion =
+                modelVersionRepository
+                        .findByModelTypeAndVersion(
+                                modelType,
+                                version
+                        )
+                        .orElse(null);
+
+        // --------------------------------------------------------
+        // Existing model version
+        // --------------------------------------------------------
+
+        if (modelVersion != null) {
+
+            deactivateOtherActiveVersions(
+                    modelType,
+                    modelVersion.getId()
+            );
+
+            modelVersion.setProvider(provider);
+            modelVersion.setActive(true);
+
+            return modelVersionRepository.save(
+                    modelVersion
+            );
+        }
+
+        // --------------------------------------------------------
+        // New model version
+        // --------------------------------------------------------
+
+        deactivateOtherActiveVersions(
+                modelType,
+                null
+        );
+
+        modelVersion = new ModelVersion();
+
+        modelVersion.setModelType(modelType);
+        modelVersion.setVersion(version);
+        modelVersion.setProvider(provider);
+        modelVersion.setActive(true);
+        modelVersion.setCreatedAt(
+                LocalDateTime.now()
+        );
+
+        return modelVersionRepository.save(
+                modelVersion
+        );
+    }
+
+    // ============================================================
+    // GET MODEL VERSION
+    // ============================================================
+
+    public ModelVersion getModelVersion(
+            String modelType,
+            String version
     ) {
 
         if (modelType == null || modelType.isBlank()) {
@@ -41,45 +121,6 @@ public class ModelVersionService {
                     "Model version is required"
             );
         }
-
-        if (provider == null || provider.isBlank()) {
-            throw new IllegalArgumentException(
-                    "Model provider is required"
-            );
-        }
-
-        return modelVersionRepository
-                .findByModelTypeAndVersion(
-                        modelType,
-                        version
-                )
-                .orElseGet(() -> {
-
-                    ModelVersion modelVersion =
-                            new ModelVersion();
-
-                    modelVersion.setModelType(modelType);
-                    modelVersion.setVersion(version);
-                    modelVersion.setProvider(provider);
-                    modelVersion.setActive(true);
-                    modelVersion.setCreatedAt(
-                            LocalDateTime.now()
-                    );
-
-                    return modelVersionRepository.save(
-                            modelVersion
-                    );
-                });
-    }
-
-    // ============================================================
-    // GET MODEL VERSION
-    // ============================================================
-
-    public ModelVersion getModelVersion(
-            String modelType,
-            String version
-    ) {
 
         return modelVersionRepository
                 .findByModelTypeAndVersion(
@@ -104,11 +145,7 @@ public class ModelVersionService {
             String modelType
     ) {
 
-        if (modelType == null || modelType.isBlank()) {
-            throw new IllegalArgumentException(
-                    "Model type is required"
-            );
-        }
+        validateModelType(modelType);
 
         return modelVersionRepository
                 .findByModelTypeOrderByCreatedAtDesc(
@@ -124,11 +161,7 @@ public class ModelVersionService {
             String modelType
     ) {
 
-        if (modelType == null || modelType.isBlank()) {
-            throw new IllegalArgumentException(
-                    "Model type is required"
-            );
-        }
+        validateModelType(modelType);
 
         return modelVersionRepository
                 .findByModelTypeAndActiveTrue(
@@ -140,18 +173,18 @@ public class ModelVersionService {
     // ACTIVATE MODEL VERSION
     // ============================================================
 
+    /**
+     * Activates exactly one model version for its model type.
+     *
+     * All other active versions belonging to the same model type
+     * are first deactivated.
+     */
     @Transactional
     public ModelVersion activateModelVersion(
             Long modelVersionId
     ) {
 
-        if (modelVersionId == null
-                || modelVersionId <= 0) {
-
-            throw new IllegalArgumentException(
-                    "Model version ID must be greater than zero"
-            );
-        }
+        validateModelVersionId(modelVersionId);
 
         ModelVersion selectedModel =
                 modelVersionRepository
@@ -163,22 +196,10 @@ public class ModelVersionService {
                                 )
                         );
 
-        List<ModelVersion> existingActiveModels =
-                modelVersionRepository
-                        .findByModelTypeAndActiveTrue(
-                                selectedModel.getModelType()
-                        );
-
-        for (ModelVersion model :
-                existingActiveModels) {
-
-            if (!model.getId().equals(
-                    selectedModel.getId()
-            )) {
-                model.setActive(false);
-                modelVersionRepository.save(model);
-            }
-        }
+        deactivateOtherActiveVersions(
+                selectedModel.getModelType(),
+                selectedModel.getId()
+        );
 
         selectedModel.setActive(true);
 
@@ -196,13 +217,7 @@ public class ModelVersionService {
             Long modelVersionId
     ) {
 
-        if (modelVersionId == null
-                || modelVersionId <= 0) {
-
-            throw new IllegalArgumentException(
-                    "Model version ID must be greater than zero"
-            );
-        }
+        validateModelVersionId(modelVersionId);
 
         ModelVersion modelVersion =
                 modelVersionRepository
@@ -219,5 +234,99 @@ public class ModelVersionService {
         return modelVersionRepository.save(
                 modelVersion
         );
+    }
+
+    // ============================================================
+    // INTERNAL HELPERS
+    // ============================================================
+
+    /**
+     * Deactivates every currently active version of the specified
+     * model type except the supplied version ID.
+     *
+     * A null excluded ID means that all currently active versions
+     * should be deactivated.
+     */
+    private void deactivateOtherActiveVersions(
+            String modelType,
+            Long excludedModelVersionId
+    ) {
+
+        List<ModelVersion> existingActiveModels =
+                modelVersionRepository
+                        .findByModelTypeAndActiveTrue(
+                                modelType
+                        );
+
+        for (ModelVersion model :
+                existingActiveModels) {
+
+            if (excludedModelVersionId != null
+                    && excludedModelVersionId.equals(
+                    model.getId()
+            )) {
+                continue;
+            }
+
+            if (Boolean.TRUE.equals(
+                    model.getActive()
+            )) {
+
+                model.setActive(false);
+
+                modelVersionRepository.save(
+                        model
+                );
+            }
+        }
+    }
+
+    // ============================================================
+    // VALIDATION
+    // ============================================================
+
+    private void validateModelDetails(
+            String modelType,
+            String version,
+            String provider
+    ) {
+
+        validateModelType(modelType);
+
+        if (version == null || version.isBlank()) {
+            throw new IllegalArgumentException(
+                    "Model version is required"
+            );
+        }
+
+        if (provider == null || provider.isBlank()) {
+            throw new IllegalArgumentException(
+                    "Model provider is required"
+            );
+        }
+    }
+
+    private void validateModelType(
+            String modelType
+    ) {
+
+        if (modelType == null || modelType.isBlank()) {
+            throw new IllegalArgumentException(
+                    "Model type is required"
+            );
+        }
+    }
+
+    private void validateModelVersionId(
+            Long modelVersionId
+    ) {
+
+        if (modelVersionId == null
+                || modelVersionId <= 0) {
+
+            throw new IllegalArgumentException(
+                    "Model version ID must be greater than zero"
+            );
+        }
     }
 }
