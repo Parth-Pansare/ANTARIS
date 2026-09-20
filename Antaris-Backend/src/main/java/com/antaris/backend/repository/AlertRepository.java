@@ -9,7 +9,7 @@ public interface AlertRepository extends JpaRepository<Alert, Long> {
 
     List<Alert> findByStationIdOrderByTimestampDesc(Long stationId);
 
-    List<Alert> findByStationIdAndAcknowledgedFalseOrderByTimestampDesc(
-            Long stationId
-    );
+    List<Alert> findByStationIdAndAcknowledgedFalseOrderByTimestampDesc(Long stationId);
+
+    List<Alert> findBySourceAndActiveTrue(String source);
 }

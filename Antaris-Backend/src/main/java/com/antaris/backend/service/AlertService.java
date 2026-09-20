@@ -80,6 +80,7 @@ public class AlertService {
                 alert.getSource(),
 
                 alert.getAcknowledged(),
+                alert.getActive(),
 
                 alert.getTimestamp()
         );

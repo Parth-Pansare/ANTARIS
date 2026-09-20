@@ -20,7 +20,7 @@ public class Alert {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "station_id", nullable = false)
     private Station station;
 
@@ -33,15 +33,49 @@ public class Alert {
     @Column(nullable = false)
     private String title;
 
-    @Column(nullable = false, length = 1000)
+    @Column(nullable = false, columnDefinition = "TEXT")
     private String message;
 
     @Column(nullable = false)
     private String source;
 
     @Column(nullable = false)
-    private Boolean acknowledged;
+    private Boolean acknowledged = false;
+
+    @Column(nullable = false, columnDefinition = "boolean default true")
+    private Boolean active = true;
 
     @Column(nullable = false)
     private LocalDateTime timestamp;
+
+    /**
+     * Backward-compatible constructor.
+     *
+     * Existing initializers and older code do not provide
+     * the new active lifecycle field.
+     *
+     * New alerts are active by default.
+     */
+    public Alert(
+            Long id,
+            Station station,
+            String alertType,
+            String severity,
+            String title,
+            String message,
+            String source,
+            Boolean acknowledged,
+            LocalDateTime timestamp
+    ) {
+        this.id = id;
+        this.station = station;
+        this.alertType = alertType;
+        this.severity = severity;
+        this.title = title;
+        this.message = message;
+        this.source = source;
+        this.acknowledged = acknowledged;
+        this.active = true;
+        this.timestamp = timestamp;
+    }
 }

@@ -62,7 +62,6 @@ public class PredictiveAlertService {
          * through the prediction/risk APIs but do not
          * create operational alerts.
          */
-
         if (!isAlertWorthy(risk.getRiskLevel())) {
             return null;
         }
@@ -102,6 +101,14 @@ public class PredictiveAlertService {
         );
 
         alert.setAcknowledged(false);
+
+        /*
+         * Predictive alerts represent the risk generated
+         * by the current prediction request.
+         *
+         * They are active when created.
+         */
+        alert.setActive(true);
 
         alert.setTimestamp(
                 LocalDateTime.now()
@@ -213,7 +220,7 @@ public class PredictiveAlertService {
         }
 
         if ("TEMPERATURE".equals(predictionType)) {
-            return "°C";
+            return "Â°C";
         }
 
         if ("ENERGY_CONSUMPTION".equals(predictionType)) {
