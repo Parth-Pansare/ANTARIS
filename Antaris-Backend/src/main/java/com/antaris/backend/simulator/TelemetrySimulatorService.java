@@ -54,16 +54,30 @@ public class TelemetrySimulatorService {
             return;
         }
 
-        allSnapshots =
-                snapshotBuilder.buildSnapshots();
+        try {
 
-        if (allSnapshots.isEmpty()) {
-            throw new IllegalStateException(
-                    "No telemetry snapshots available."
+            allSnapshots =
+                    snapshotBuilder.buildSnapshots();
+
+            if (allSnapshots.isEmpty()) {
+                throw new IllegalStateException(
+                        "No telemetry snapshots available."
+                );
+            }
+
+            selectStationSnapshots(currentStation);
+
+        } catch (Exception e) {
+
+            System.err.println(
+                    "SIMULATOR LOAD ERROR - "
+                            + e.getClass().getSimpleName()
+                            + ": "
+                            + e.getMessage()
             );
-        }
 
-        selectStationSnapshots(currentStation);
+            throw e;
+        }
     }
 
     /**
@@ -72,6 +86,14 @@ public class TelemetrySimulatorService {
     private synchronized void selectStationSnapshots(
             String stationCode
     ) {
+
+        if (stationCode == null
+                || stationCode.isBlank()) {
+
+            throw new IllegalArgumentException(
+                    "Station code cannot be null or blank."
+            );
+        }
 
         stationSnapshots =
                 allSnapshots.stream()
@@ -90,7 +112,7 @@ public class TelemetrySimulatorService {
         }
 
         currentStation =
-                stationCode.toUpperCase();
+                stationCode.trim().toUpperCase();
 
         currentIndex = 0;
     }
@@ -138,11 +160,37 @@ public class TelemetrySimulatorService {
 
         playbackTask =
                 scheduler.scheduleAtFixedRate(
-                        this::advance,
+                        this::safeAdvance,
                         0,
                         intervalMillis,
                         TimeUnit.MILLISECONDS
                 );
+    }
+
+    /**
+     * Fault-tolerant scheduler entry point.
+     *
+     * Any unexpected exception during one simulator tick is caught
+     * here so that the ScheduledExecutorService remains alive and
+     * future telemetry ticks can continue.
+     */
+    private void safeAdvance() {
+
+        try {
+
+            advance();
+
+        } catch (Throwable throwable) {
+
+            System.err.println(
+                    "SIMULATOR TICK ERROR - "
+                            + throwable.getClass().getSimpleName()
+                            + ": "
+                            + throwable.getMessage()
+            );
+
+            throwable.printStackTrace(System.err);
+        }
     }
 
     public synchronized void setSpeed(
@@ -184,11 +232,36 @@ public class TelemetrySimulatorService {
         TelemetrySnapshot currentSnapshot =
                 stationSnapshots.get(currentIndex);
 
-        eventPublisher.publishEvent(
-                new TelemetryUpdatedEvent(
-                        currentSnapshot
-                )
-        );
+        if (currentSnapshot == null) {
+
+            System.err.println(
+                    "SIMULATOR SNAPSHOT ERROR - "
+                            + "Current snapshot is null at index "
+                            + currentIndex
+            );
+
+            return;
+        }
+
+        try {
+
+            eventPublisher.publishEvent(
+                    new TelemetryUpdatedEvent(
+                            currentSnapshot
+                    )
+            );
+
+        } catch (Throwable throwable) {
+
+            System.err.println(
+                    "SIMULATOR EVENT ERROR - "
+                            + throwable.getClass().getSimpleName()
+                            + ": "
+                            + throwable.getMessage()
+            );
+
+            throwable.printStackTrace(System.err);
+        }
     }
 
     /**
