@@ -1,0 +1,15 @@
+spring.application.name=Antaris-Backend
+
+spring.datasource.url=${ANTARIS_DB_URL:jdbc:postgresql://localhost:5432/antaris_db}
+spring.datasource.username=${ANTARIS_DB_USERNAME:postgres}
+spring.datasource.password=${ANTARIS_DB_PASSWORD:}
+
+spring.jpa.hibernate.ddl-auto=update
+spring.jpa.show-sql=true
+spring.jpa.properties.hibernate.format_sql=true
+
+spring.profiles.active=python-ml
+
+antaris.ml.base-url=${ANTARIS_ML_BASE_URL:http://127.0.0.1:8000}
+
+server.port=8080
