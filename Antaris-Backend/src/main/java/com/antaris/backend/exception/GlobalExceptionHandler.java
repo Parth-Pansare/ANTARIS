@@ -57,7 +57,23 @@ public class GlobalExceptionHandler {
     }
 
     // ============================================================
-    // ML / APPLICATION STATE ERRORS
+    // ML PROVIDER ERRORS
+    // ============================================================
+
+    @ExceptionHandler(MlProviderException.class)
+    public ResponseEntity<Map<String, Object>> handleMlProviderException(
+            MlProviderException exception
+    ) {
+
+        return buildResponse(
+                HttpStatus.BAD_GATEWAY,
+                "ML Provider Error",
+                exception.getMessage()
+        );
+    }
+
+    // ============================================================
+    // APPLICATION STATE ERRORS
     // ============================================================
 
     @ExceptionHandler(IllegalStateException.class)
@@ -66,8 +82,8 @@ public class GlobalExceptionHandler {
     ) {
 
         return buildResponse(
-                HttpStatus.BAD_GATEWAY,
-                "Prediction Provider Error",
+                HttpStatus.INTERNAL_SERVER_ERROR,
+                "Application State Error",
                 exception.getMessage()
         );
     }

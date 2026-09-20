@@ -1,5 +1,6 @@
 package com.antaris.backend.ml.adapter;
 
+import com.antaris.backend.exception.MlProviderException;
 import com.antaris.backend.ml.dto.PredictionRequest;
 import com.antaris.backend.ml.dto.PredictionResponse;
 import org.springframework.beans.factory.annotation.Value;
@@ -80,16 +81,21 @@ public class PythonMlPredictionClient implements MlPredictionClient {
                             .body(PredictionResponse.class);
 
             if (response == null) {
-                throw new IllegalStateException(
+
+                throw new MlProviderException(
                         "Python ML service returned an empty response"
                 );
             }
 
             return response;
 
+        } catch (MlProviderException exception) {
+
+            throw exception;
+
         } catch (RestClientException exception) {
 
-            throw new IllegalStateException(
+            throw new MlProviderException(
                     "Python ML service is unavailable or returned an error",
                     exception
             );
