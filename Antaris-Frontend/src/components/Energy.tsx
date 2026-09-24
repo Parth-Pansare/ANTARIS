@@ -29,18 +29,6 @@ const statusColors: Record<string, string> = {
   monitoring: "#00c8e8",
 };
 
-// Sankey-style flow nodes
-const flowNodes = [
-  { label: "GENERATOR G-01", value: "92 kW", color: "#10b981", level: 0, pos: 0 },
-  { label: "GENERATOR G-02", value: "93 kW", color: "#f59e0b", level: 0, pos: 1 },
-  { label: "BATTERY BANK", value: "+2 kW", color: "#00c8e8", level: 0, pos: 2 },
-  { label: "DISTRIBUTION BUS", value: "185 kW", color: "#e2e8f0", level: 1, pos: 0 },
-  { label: "HEATING SYSTEMS", value: "68 kW", color: "#ef4444", level: 2, pos: 0 },
-  { label: "LABORATORY", value: "28 kW", color: "#8b5cf6", level: 2, pos: 1 },
-  { label: "LIVING QUARTERS", value: "24 kW", color: "#0ea5e9", level: 2, pos: 2 },
-  { label: "CRITICAL SYSTEMS", value: "14 kW", color: "#f59e0b", level: 2, pos: 3 },
-];
-
 export default function Energy() {
   return (
     <div style={{ padding: "20px", display: "flex", flexDirection: "column", gap: 16 }}>
@@ -141,7 +129,7 @@ export default function Energy() {
                 </div>
                 <div style={{ display: "flex", gap: 16, marginBottom: 8 }}>
                   <div className="section-label">LOAD: <span style={{ color: "#e2e8f0", fontWeight: 600 }}>{g.load}%</span></div>
-                  <div className="section-label">TEMP: <span style={{ color: g.temp > "80" ? "#f59e0b" : "#e2e8f0", fontWeight: 600 }}>{g.temp}</span></div>
+                  <div className="section-label">TEMP: <span style={{ color: parseInt(g.temp, 10) > 80 ? "#f59e0b" : "#e2e8f0", fontWeight: 600 }}>{g.temp}</span></div>
                   <div className="section-label">RT: <span style={{ color: "#e2e8f0", fontWeight: 600 }}>{g.runtime}</span></div>
                 </div>
                 <LoadBar value={g.load} color={statusColors[g.status]} />

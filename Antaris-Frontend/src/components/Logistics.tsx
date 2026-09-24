@@ -128,7 +128,7 @@ export default function Logistics() {
                 <td style={{ color: "#e2e8f0", fontWeight: 500 }}>{r.item}</td>
                 <td style={{ textAlign: "right" }} className="font-mono">{r.current}</td>
                 <td style={{ textAlign: "right" }} className="font-mono">{r.daily}</td>
-                <td style={{ textAlign: "right" }} className="font-mono" style={{ color: r.days < 20 ? "#ef4444" : r.days < 40 ? "#f59e0b" : "#10b981" }}>{r.days}d</td>
+                <td className="font-mono" style={{ textAlign: "right", color: r.days < 20 ? "#ef4444" : r.days < 40 ? "#f59e0b" : "#10b981" }}>{r.days}d</td>
                 <td style={{ padding: "10px 12px" }}>
                   <div style={{ height: 4, background: "rgba(148,163,184,0.1)", borderRadius: 2, width: 100 }}>
                     <div style={{ width: `${r.pct}%`, height: "100%", background: statusColors[r.status], borderRadius: 2, opacity: 0.8 }} />

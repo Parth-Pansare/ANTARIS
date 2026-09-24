@@ -1,0 +1,99 @@
+/* Login is an intentionally dark entry surface, independent of dashboard appearance. */
+.login-page {
+  background: #070d1a !important;
+  background-image: radial-gradient(ellipse at 50% 0%, rgba(0, 200, 232, .10), transparent 52%), linear-gradient(145deg, #070d1a 0%, #0a1628 55%, #07131f 100%) !important;
+  color: #e7eef7 !important;
+  font-family: Inter, sans-serif !important;
+}
+.login-header {
+  background: rgba(7, 13, 26, .94) !important;
+  border-bottom: 1px solid rgba(0, 200, 232, .18) !important;
+}
+.login-brand, .login-brand > span { color: #e7eef7 !important; }
+.login-brand small { color: #7f9aad !important; border-color: rgba(0, 200, 232, .24) !important; }
+.login-header-meta { color: #8fa1b5 !important; }
+.status-mark { color: #10b981 !important; }
+.login-kicker, .panel-kicker { color: #22c5df !important; }
+.login-briefing h1 { color: #f1f7fb !important; }
+.login-briefing h1 em { color: #22c5df !important; }
+.login-lead { color: #a9bacb !important; }
+.pipeline-step { color: #dbe7f2 !important; }
+.pipeline-step span { color: #8196aa !important; }
+.station-stage {
+  background: linear-gradient(180deg, rgba(0, 200, 232, .055), rgba(7, 19, 28, .22) 64%), repeating-linear-gradient(90deg, rgba(129, 194, 190, .07) 0 1px, transparent 1px 44px) !important;
+  border-color: rgba(0, 200, 232, .22) !important;
+}
+.stage-label, .stage-readout, .login-disclaimer { color: #829bb0 !important; }
+.stage-readout b { color: #e7eef7 !important; }
+.stage-callout { color: #8da8b7 !important; }
+.stage-callout b { color: #cce4ee !important; }
+.access-panel {
+  background: #0d1b2e !important;
+  color: #e7eef7 !important;
+  border: 1px solid rgba(0, 200, 232, .24) !important;
+  box-shadow: 0 24px 80px rgba(0, 0, 0, .42), 0 0 28px rgba(0, 200, 232, .045) !important;
+  backdrop-filter: blur(16px) !important;
+}
+.access-heading { border-bottom-color: rgba(0, 200, 232, .2) !important; }
+.access-heading h2, .otp-panel h2 { color: #f1f7fb !important; }
+.access-lock { color: #27c6dc !important; border-color: rgba(0, 200, 232, .35) !important; background: rgba(0, 200, 232, .06) !important; }
+.access-form label { color: #9bb0c4 !important; }
+.access-form input, .otp-inputs input {
+  background: #070f1e !important;
+  color: #f1f7fb !important;
+  border: 1px solid #29415a !important;
+  caret-color: #22c5df !important;
+}
+.access-form input::placeholder { color: #71869b !important; }
+.access-form input:focus, .otp-inputs input:focus { border-color: #22c5df !important; box-shadow: 0 0 0 2px rgba(34, 197, 223, .14) !important; }
+.access-submit { background: linear-gradient(110deg, #078ca8, #087eb5) !important; color: #f8fdff !important; border: 1px solid #1499bb !important; }
+.access-submit:hover { background: linear-gradient(110deg, #079bb8, #0b8dcc) !important; }
+.access-divider { color: #8298aa !important; }
+.access-divider:before, .access-divider:after { background: #263d52 !important; }
+.provider-grid button { background: #101f33 !important; color: #c2d1df !important; border-color: #2b4055 !important; }
+.provider-grid button:hover { background: #152b41 !important; color: #f1f7fb !important; border-color: #178da8 !important; }
+.access-note { background: #0b2930 !important; border-left-color: #10b981 !important; }
+.access-note b { color: #34d3a0 !important; }
+.access-note span { color: #a1bac7 !important; }
+.access-footer { border-top-color: #263d52 !important; color: #7e95a9 !important; }
+.access-footer span { color: #3c6076 !important; }
+.otp-panel p { color: #a9bacb !important; }
+.otp-panel p b { color: #e3edf5 !important; }
+.back-link { color: #22c5df !important; }
+.otp-panel small { color: #8298aa !important; }
+.login-error { background: #351b25 !important; color: #ffb4b4 !important; border-left-color: #ef4444 !important; }
+@media (max-width: 760px) {
+  .login-header-meta { display: none !important; }
+  .login-layout { grid-template-columns: 1fr !important; width: min(92vw, 475px) !important; }
+  .login-briefing { display: none !important; }
+  .access-panel { justify-self: center !important; }
+}
+
+/* Explicit high-contrast login typography: guard against legacy opacity/filter rules. */
+.login-page .access-heading h2,
+.login-page .otp-panel h2 {
+  color: #f4f9ff !important;
+  opacity: 1 !important;
+  filter: none !important;
+  -webkit-text-fill-color: #f4f9ff !important;
+  text-shadow: none !important;
+}
+.login-page .access-heading { border-bottom: 1px solid #31536c !important; }
+.login-page .otp-panel .panel-kicker { color: #55e4f2 !important; opacity: 1 !important; }
+.login-page .otp-panel p,
+.login-page .otp-panel p b { opacity: 1 !important; filter: none !important; }
+.login-page .otp-panel p { color: #c3d3e3 !important; }
+.login-page .otp-panel p b { color: #ffffff !important; }
+.login-page .otp-inputs input {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  font: 700 22px 'JetBrains Mono', monospace !important;
+  opacity: 1 !important;
+  text-shadow: none !important;
+  background: #050c18 !important;
+  border: 1px solid #42617c !important;
+}
+.login-page .otp-inputs input::placeholder { color: #8da6bc !important; opacity: 1 !important; }
+.login-page .otp-inputs input:focus { border-color: #45dff0 !important; }
+.login-page .access-footer { border-top: 1px solid #31536c !important; color: #9bb0c4 !important; }
+.login-page .otp-panel small { color: #a8bbce !important; opacity: 1 !important; }

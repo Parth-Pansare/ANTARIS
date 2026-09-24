@@ -1,4 +1,5 @@
-import { AreaChart, Area, XAxis, YAxis, ResponsiveContainer, Tooltip, CartesianGrid, ReferenceLine, LineChart, Line } from "recharts";
+import { useState } from "react";
+import { AreaChart, Area, XAxis, YAxis, ResponsiveContainer, Tooltip, CartesianGrid, ReferenceLine, LineChart, Line, ComposedChart } from "recharts";
 
 const tempData = Array.from({ length: 24 }, (_, i) => ({
   t: `${String(i).padStart(2,"0")}:00`,
@@ -30,6 +31,7 @@ const forecast = [
 ];
 
 export default function Environment() {
+  const [timeframe, setTimeframe] = useState("24H");
   return (
     <div style={{ padding: "20px", display: "flex", flexDirection: "column", gap: 16 }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
@@ -41,7 +43,7 @@ export default function Environment() {
         </div>
         <div style={{ display: "flex", gap: 8 }}>
           {["24H", "7D", "30D"].map(r => (
-            <button key={r} className="btn-ghost" style={{ fontSize: 11, padding: "4px 10px" }}>{r}</button>
+            <button key={r} onClick={() => setTimeframe(r)} className="btn-ghost" style={{ fontSize: 11, padding: "4px 10px", background: timeframe === r ? "rgba(0,200,232,0.1)" : "transparent", color: timeframe === r ? "#00c8e8" : "inherit" }}>{r}</button>
           ))}
         </div>
       </div>
@@ -74,7 +76,7 @@ export default function Environment() {
         <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
           <EnvChart title="Temperature (°C)" sub="24-hour with anomaly markers">
             <ResponsiveContainer width="100%" height={110}>
-              <AreaChart data={tempData}>
+              <ComposedChart data={tempData}>
                 <defs>
                   <linearGradient id="tg" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="5%" stopColor="#00c8e8" stopOpacity={0.25}/>
@@ -88,7 +90,7 @@ export default function Environment() {
                 <ReferenceLine y={-32} stroke="#ef4444" strokeDasharray="4 2" strokeWidth={1} label={{ value: "ALERT", fill: "#ef4444", fontSize: 9, fontFamily: "JetBrains Mono" }}/>
                 <Area type="monotone" dataKey="v" stroke="#00c8e8" strokeWidth={2} fill="url(#tg)" dot={false} name="Actual"/>
                 <Line type="monotone" dataKey="forecast" stroke="#0ea5e9" strokeWidth={1} dot={false} strokeDasharray="3 2" name="Forecast"/>
-              </AreaChart>
+              </ComposedChart>
             </ResponsiveContainer>
           </EnvChart>
 

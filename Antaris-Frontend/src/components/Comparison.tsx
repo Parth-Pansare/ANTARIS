@@ -130,16 +130,24 @@ export default function Comparison() {
           </thead>
           <tbody>
             {compareData.map(row => {
-              const mBetter = row.metric === "Active Alerts" ? row.maitri < row.bharati : row.maitri > row.bharati;
+              const lowerIsBetter = ["Energy Load", "Active Alerts"].includes(row.metric);
+              const isEqual = row.maitri === row.bharati;
+              const mBetter = lowerIsBetter ? row.maitri < row.bharati : row.maitri > row.bharati;
               return (
                 <tr key={row.metric}>
                   <td style={{ color: "#e2e8f0", fontWeight: 500 }}>{row.metric}</td>
                   <td style={{ textAlign: "center" }} className="font-mono">{row.maitri}{row.unit}</td>
                   <td style={{ textAlign: "center" }} className="font-mono">{row.bharati}{row.unit}</td>
                   <td style={{ textAlign: "center" }}>
-                    <span style={{ padding: "2px 8px", borderRadius: 3, fontSize: 9, fontFamily: "JetBrains Mono", letterSpacing: "0.1em", background: mBetter ? "rgba(0,200,232,0.12)" : "rgba(139,92,246,0.12)", color: mBetter ? "#00c8e8" : "#8b5cf6", border: `1px solid ${mBetter ? "rgba(0,200,232,0.25)" : "rgba(139,92,246,0.25)"}` }}>
-                      {mBetter ? "MAITRI" : "BHARATI"}
-                    </span>
+                    {isEqual ? (
+                      <span style={{ padding: "2px 8px", borderRadius: 3, fontSize: 9, fontFamily: "JetBrains Mono", letterSpacing: "0.1em", background: "rgba(148,163,184,0.12)", color: "#94a3b8", border: "1px solid rgba(148,163,184,0.25)" }}>
+                        TIE
+                      </span>
+                    ) : (
+                      <span style={{ padding: "2px 8px", borderRadius: 3, fontSize: 9, fontFamily: "JetBrains Mono", letterSpacing: "0.1em", background: mBetter ? "rgba(0,200,232,0.12)" : "rgba(139,92,246,0.12)", color: mBetter ? "#00c8e8" : "#8b5cf6", border: `1px solid ${mBetter ? "rgba(0,200,232,0.25)" : "rgba(139,92,246,0.25)"}` }}>
+                        {mBetter ? "MAITRI" : "BHARATI"}
+                      </span>
+                    )}
                   </td>
                 </tr>
               );

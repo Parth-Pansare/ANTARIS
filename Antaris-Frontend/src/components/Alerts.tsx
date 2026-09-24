@@ -103,8 +103,8 @@ export default function Alerts() {
           <p style={{ fontSize: 13, color: "#64748b" }}>Real-time alert monitoring · Recommended actions · Station intelligence</p>
         </div>
         <div style={{ display: "flex", gap: 8 }}>
-          <button className="btn-secondary" style={{ fontSize: 12 }}>Acknowledge All</button>
-          <button className="btn-ghost" style={{ fontSize: 12 }}>Export Log</button>
+          <button onClick={() => setAcknowledged(new Set(alerts.map(a => a.id)))} className="btn-secondary" style={{ fontSize: 12 }}>Acknowledge All</button>
+          <button onClick={() => alert("Exported alerts_log.csv")} className="btn-ghost" style={{ fontSize: 12 }}>Export Log</button>
         </div>
       </div>
 
@@ -193,7 +193,7 @@ export default function Alerts() {
 
               {alert.priority !== "resolved" && (
                 <div style={{ display: "flex", gap: 8 }}>
-                  <button className="btn-primary" style={{ fontSize: 11, padding: "6px 14px" }}>Investigate</button>
+                  <button onClick={() => alert(`Investigating ${alert.system}...`)} className="btn-primary" style={{ fontSize: 11, padding: "6px 14px" }}>Investigate</button>
                   <button
                     className="btn-secondary"
                     style={{ fontSize: 11, padding: "6px 14px" }}
@@ -201,7 +201,7 @@ export default function Alerts() {
                   >
                     {isAcked ? "✓ Acknowledged" : "Acknowledge"}
                   </button>
-                  <button className="btn-ghost" style={{ fontSize: 11, padding: "6px 14px" }}>View System</button>
+                  <button onClick={() => alert(`Opening ${alert.system} diagnostics...`)} className="btn-ghost" style={{ fontSize: 11, padding: "6px 14px" }}>View System</button>
                 </div>
               )}
             </div>

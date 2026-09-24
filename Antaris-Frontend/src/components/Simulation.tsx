@@ -100,8 +100,8 @@ export default function Simulation() {
         </div>
         {sim && (
           <div style={{ display: "flex", gap: 8 }}>
-            <button className="btn-secondary" style={{ fontSize: 12 }}>Compare Scenarios</button>
-            <button className="btn-ghost" style={{ fontSize: 12 }}>Export Report</button>
+            <button onClick={() => alert("Comparing Scenario to Baseline...")} className="btn-secondary" style={{ fontSize: 12 }}>Compare Scenarios</button>
+            <button onClick={() => alert("Report Exported: simulation_run_2026.pdf")} className="btn-ghost" style={{ fontSize: 12 }}>Export Report</button>
           </div>
         )}
       </div>
@@ -251,9 +251,9 @@ export default function Simulation() {
                 ))}
               </div>
               <div style={{ display: "flex", gap: 8 }}>
-                <button className="btn-primary" style={{ fontSize: 12, padding: "8px 16px" }}>Apply Scenario</button>
-                <button className="btn-secondary" style={{ fontSize: 12, padding: "8px 16px" }}>Compare Scenarios</button>
-                <button className="btn-ghost" style={{ fontSize: 12, padding: "8px 16px" }}>Export Report</button>
+                <button onClick={() => alert("Scenario applied to active operation parameters.")} className="btn-primary" style={{ fontSize: 12, padding: "8px 16px" }}>Apply Scenario</button>
+                <button onClick={() => alert("Comparing Scenario to Baseline...")} className="btn-secondary" style={{ fontSize: 12, padding: "8px 16px" }}>Compare Scenarios</button>
+                <button onClick={() => alert("Report Exported: simulation_run_2026.pdf")} className="btn-ghost" style={{ fontSize: 12, padding: "8px 16px" }}>Export Report</button>
               </div>
             </div>
           )}

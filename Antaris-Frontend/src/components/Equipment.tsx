@@ -1,3 +1,5 @@
+import { useState } from "react";
+
 type Status = "normal" | "warning" | "critical" | "offline";
 
 const equipment = [
@@ -47,6 +49,16 @@ const statusColors: Record<Status, string> = {
 };
 
 export default function Equipment() {
+  const [filter, setFilter] = useState("All");
+  const [inspectEq, setInspectEq] = useState<string | null>(null);
+
+  const filteredEquipment = equipment.filter(eq => {
+    if (filter === "All") return true;
+    if (filter === "Warning") return eq.status === "warning";
+    if (filter === "Critical") return eq.status === "critical";
+    return true;
+  });
+
   return (
     <div style={{ padding: "20px", display: "flex", flexDirection: "column", gap: 16 }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
@@ -58,7 +70,7 @@ export default function Equipment() {
         </div>
         <div style={{ display: "flex", gap: 8 }}>
           {["All", "Warning", "Critical"].map(f => (
-            <button key={f} className="btn-ghost" style={{ fontSize: 11, padding: "4px 10px" }}>{f}</button>
+            <button key={f} onClick={() => setFilter(f)} className="btn-ghost" style={{ fontSize: 11, padding: "4px 10px", background: filter === f ? "rgba(0,200,232,0.1)" : "transparent", color: filter === f ? "#00c8e8" : "inherit" }}>{f}</button>
           ))}
         </div>
       </div>
@@ -80,7 +92,7 @@ export default function Equipment() {
 
       {/* Equipment cards */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 12 }}>
-        {equipment.map(eq => (
+        {filteredEquipment.map(eq => (
           <EquipmentCard key={eq.id} eq={eq} />
         ))}
       </div>
@@ -115,12 +127,32 @@ export default function Equipment() {
               </div>
               <div style={{ display: "flex", gap: 6 }}>
                 <button className="btn-secondary" style={{ fontSize: 11, padding: "5px 12px" }}>Schedule</button>
-                <button className="btn-ghost" style={{ fontSize: 11, padding: "5px 12px" }}>Inspect</button>
+                <button onClick={() => setInspectEq(m.eq)} className="btn-ghost" style={{ fontSize: 11, padding: "5px 12px" }}>Inspect</button>
               </div>
             </div>
           ))}
         </div>
       </div>
+
+      {inspectEq && (
+        <div style={{ position: "fixed", top: 0, right: 0, bottom: 0, width: 400, background: "rgba(7,13,26,0.95)", borderLeft: "1px solid rgba(0,200,232,0.2)", zIndex: 1000, padding: 24, backdropFilter: "blur(12px)", boxShadow: "-4px 0 24px rgba(0,0,0,0.5)" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
+            <h2 className="font-display" style={{ fontSize: 20, color: "#e2e8f0" }}>Inspection: {inspectEq}</h2>
+            <button onClick={() => setInspectEq(null)} className="btn-ghost" style={{ fontSize: 16, width: 32, height: 32, display: "flex", alignItems: "center", justifyContent: "center" }}>✕</button>
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+            <div className="glass" style={{ padding: 16, borderRadius: 8 }}>
+              <div className="section-label" style={{ marginBottom: 8 }}>Diagnostic Summary</div>
+              <p style={{ fontSize: 13, color: "#94a3b8", lineHeight: 1.5 }}>Sensors indicate anomalous vibration signatures in the primary assembly. Harmonic analysis suggests early stage wear.</p>
+            </div>
+            <div className="glass" style={{ padding: 16, borderRadius: 8 }}>
+              <div className="section-label" style={{ marginBottom: 8 }}>Recommended Action</div>
+              <p style={{ fontSize: 13, color: "#e2e8f0", lineHeight: 1.5 }}>Perform manual inspection of the assembly and schedule preventative replacement within the next 14 days.</p>
+              <button onClick={() => setInspectEq(null)} className="btn-primary" style={{ width: "100%", marginTop: 16 }}>Create Work Order</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

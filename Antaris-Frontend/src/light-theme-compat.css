@@ -1,0 +1,47 @@
+/* Light appearance compatibility for legacy pages with inline dark-theme styles. */
+html[data-theme="light"] body,
+html[data-theme="light"] #root {
+  color: #172b40 !important;
+  background: #edf5f8 !important;
+}
+
+html[data-theme="light"] [style*="rgba(7,13,26"],
+html[data-theme="light"] [style*="rgba(13,27,46"],
+html[data-theme="light"] [style*="rgba(7, 13, 26"],
+html[data-theme="light"] [style*="rgba(13, 27, 46"] {
+  background-color: #f8fbfd !important;
+  background-image: none !important;
+  color: #243b53 !important;
+  border-color: #d6e2e9 !important;
+}
+
+html[data-theme="light"] [style*="#e2e8f0"],
+html[data-theme="light"] [style*="#e7eef7"] { color: #172b40 !important; }
+html[data-theme="light"] [style*="#94a3b8"],
+html[data-theme="light"] [style*="#8fa1b5"] { color: #536b80 !important; }
+html[data-theme="light"] [style*="#64748b"],
+html[data-theme="light"] [style*="#475569"],
+html[data-theme="light"] [style*="#52647a"],
+html[data-theme="light"] [style*="#2d3d50"] { color: #5b7185 !important; }
+
+html[data-theme="light"] .chart-container,
+html[data-theme="light"] .kpi-card,
+html[data-theme="light"] .glass,
+html[data-theme="light"] .glass-strong {
+  background: #ffffff !important;
+  color: #172b40 !important;
+  border-color: #d5e3eb !important;
+}
+html[data-theme="light"] .alert-critical { background: #fff1f0 !important; }
+html[data-theme="light"] .alert-warning { background: #fff8e8 !important; }
+html[data-theme="light"] .alert-info { background: #effaff !important; }
+
+html[data-theme="light"] input,
+html[data-theme="light"] select,
+html[data-theme="light"] textarea {
+  background-color: #ffffff !important;
+  color: #172b40 !important;
+  border-color: #c8d8e2 !important;
+}
+html[data-theme="light"] input::placeholder,
+html[data-theme="light"] textarea::placeholder { color: #71869a !important; opacity: 1 !important; }

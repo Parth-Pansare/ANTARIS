@@ -60,8 +60,8 @@ export default function Reports() {
           <p style={{ fontSize: 13, color: "#64748b" }}>Automated reporting · AI-generated insights · Export ready</p>
         </div>
         <div style={{ display: "flex", gap: 8 }}>
-          <button className="btn-secondary" style={{ fontSize: 12 }}>Generate All</button>
-          <button className="btn-ghost" style={{ fontSize: 12 }}>Schedule Reports</button>
+          <button onClick={() => alert("Generating all missing daily reports...")} className="btn-secondary" style={{ fontSize: 12 }}>Generate All</button>
+          <button onClick={() => alert("Opening schedule configuration...")} className="btn-ghost" style={{ fontSize: 12 }}>Schedule Reports</button>
         </div>
       </div>
 
@@ -84,9 +84,9 @@ export default function Reports() {
             </div>
             <p style={{ fontSize: 11, color: "#64748b", marginBottom: 14 }}>{r.sub}</p>
             <div style={{ display: "flex", gap: 6 }}>
-              <button className="btn-secondary" style={{ flex: 1, fontSize: 11, padding: "6px 10px" }}>Generate</button>
-              <button className="btn-ghost" style={{ fontSize: 11, padding: "6px 10px" }}>Preview</button>
-              <button className="btn-ghost" style={{ fontSize: 11, padding: "6px 10px" }}>PDF ↓</button>
+              <button onClick={() => alert(`Generating ${r.title}...`)} className="btn-secondary" style={{ flex: 1, fontSize: 11, padding: "6px 10px" }}>Generate</button>
+              <button onClick={() => alert(`Previewing ${r.title}...`)} className="btn-ghost" style={{ fontSize: 11, padding: "6px 10px" }}>Preview</button>
+              <button onClick={() => alert(`Downloading ${r.id}_report.pdf...`)} className="btn-ghost" style={{ fontSize: 11, padding: "6px 10px" }}>PDF ↓</button>
             </div>
           </div>
         ))}
@@ -120,7 +120,7 @@ export default function Reports() {
                 <td style={{ color: "#64748b" }}>{r.by}</td>
                 <td style={{ textAlign: "right" }} className="font-mono">{r.pages}</td>
                 <td style={{ textAlign: "center" }}>
-                  <button className="btn-ghost" style={{ fontSize: 10, padding: "3px 10px" }}>Download</button>
+                  <button onClick={() => alert(`Downloading ${r.name}...`)} className="btn-ghost" style={{ fontSize: 10, padding: "3px 10px" }}>Download</button>
                 </td>
               </tr>
             ))}

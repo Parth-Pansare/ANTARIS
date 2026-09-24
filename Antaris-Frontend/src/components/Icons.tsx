@@ -1,4 +1,4 @@
-// SVG icon set for POLARIS
+// SVG icon set for ANTARIS
 export const Icons = {
   overview: (
     <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
