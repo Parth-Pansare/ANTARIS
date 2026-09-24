@@ -75,7 +75,7 @@ export default function App() {
         return <Logistics />;
 
       case 'equipment':
-        return <Equipment />;
+        return <Equipment station={station} />;
 
       case 'predictions':
         return <Predictions />;
