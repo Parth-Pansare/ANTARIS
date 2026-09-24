@@ -1,212 +1,1048 @@
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
-type Priority = "critical" | "warning" | "info" | "resolved";
+type Station = "MAITRI" | "BHARATI";
 
-interface Alert {
-  id: string;
-  time: string;
-  system: string;
-  priority: Priority;
+type AlertSeverity = "CRITICAL" | "WARNING" | "INFO";
+
+type AlertFilter =
+  | "ALL"
+  | "CRITICAL"
+  | "WARNING"
+  | "INFO"
+  | "ACTIVE"
+  | "ACKNOWLEDGED";
+
+interface AlertRecord {
+  id: number;
+  acknowledged: boolean;
+  active: boolean;
+  alertType: string;
+  message: string;
+  severity: AlertSeverity;
+  source: string;
+  stationCode: string;
+  stationId: number;
+  timestamp: string;
   title: string;
-  description: string;
-  currentValue: string;
-  threshold: string;
-  recommendation: string;
 }
 
-const alerts: Alert[] = [
-  {
-    id: "ALT-001",
-    time: "09:14:32",
-    system: "FUEL SYSTEM",
-    priority: "critical",
-    title: "Fuel Consumption Anomaly",
-    description: "Fuel consumption has exceeded predicted range by 14% over the past 6 hours. Current daily rate: 228 L vs forecast 200 L.",
-    currentValue: "228 L/day",
-    threshold: "220 L/day",
-    recommendation: "Review generator load distribution. Initiate contingency resupply plan. Check for potential fuel line inefficiency.",
-  },
-  {
-    id: "ALT-002",
-    time: "07:52:18",
-    system: "GENERATOR G-02",
-    priority: "critical",
-    title: "Abnormal Vibration — Generator G-02",
-    description: "Vibration sensors on Generator G-02 are reporting readings 34% above normal operational range. Temperature also elevated at 87°C.",
-    currentValue: "1.8 mm/s RMS",
-    threshold: "1.2 mm/s RMS",
-    recommendation: "Reduce generator load to 65%. Schedule immediate mechanical inspection. Prepare G-01 for full load transfer.",
-  },
-  {
-    id: "ALT-003",
-    time: "06:30:00",
-    system: "HEATING UNIT H-04",
-    priority: "warning",
-    title: "Heating Unit Operating Near Capacity",
-    description: "H-04 is operating at 91% rated capacity. Predictive model forecasts maintenance requirement within 6 days if load remains unchanged.",
-    currentValue: "91% capacity",
-    threshold: "88% capacity",
-    recommendation: "Monitor closely. Pre-schedule maintenance window. Consider distributing heating load to backup units.",
-  },
-  {
-    id: "ALT-004",
-    time: "04:15:09",
-    system: "ENVIRONMENT",
-    priority: "info",
-    title: "Temperature Forecast — Significant Drop",
-    description: "AI forecast indicates temperature will reach -34°C within 24 hours — 9°C below current. Potential blizzard conditions.",
-    currentValue: "-25°C",
-    threshold: "N/A",
-    recommendation: "Pre-warm heating systems. Review outdoor equipment protocols. Brief crew on weather procedures.",
-  },
-  {
-    id: "ALT-005",
-    time: "Yesterday",
-    system: "INVENTORY",
-    priority: "resolved",
-    title: "Technical Components Stock Low",
-    description: "Technical component inventory reached critical threshold (12 days remaining). Resupply request has been initiated.",
-    currentValue: "12 days",
-    threshold: "14 days",
-    recommendation: "Resupply request submitted. ETA: Sep 20, 2026. Avoid non-essential component usage.",
-  },
-];
+interface AlertsProps {
+  station: Station;
+}
 
-const priorityMeta: Record<Priority, { color: string; bg: string; label: string; border: string }> = {
-  critical: { color: "#ef4444", bg: "rgba(239,68,68,0.05)", label: "CRITICAL", border: "alert-critical" },
-  warning: { color: "#f59e0b", bg: "rgba(245,158,11,0.05)", label: "WARNING", border: "alert-warning" },
-  info: { color: "#00c8e8", bg: "rgba(0,200,232,0.05)", label: "INFO", border: "alert-info" },
-  resolved: { color: "#475569", bg: "rgba(71,85,105,0.05)", label: "RESOLVED", border: "" },
+const severityMeta: Record<
+  AlertSeverity,
+  {
+    color: string;
+    bg: string;
+    label: string;
+  }
+> = {
+  CRITICAL: {
+    color: "#ef4444",
+    bg: "rgba(239,68,68,0.05)",
+    label: "CRITICAL",
+  },
+  WARNING: {
+    color: "#f59e0b",
+    bg: "rgba(245,158,11,0.05)",
+    label: "WARNING",
+  },
+  INFO: {
+    color: "#00c8e8",
+    bg: "rgba(0,200,232,0.05)",
+    label: "INFO",
+  },
 };
 
-export default function Alerts() {
-  const [filter, setFilter] = useState<"all" | Priority>("all");
-  const [acknowledged, setAcknowledged] = useState<Set<string>>(new Set());
+function getStationId(station: Station) {
+  return station === "MAITRI" ? 1 : 2;
+}
 
-  const filtered = alerts.filter(a => filter === "all" || a.priority === filter);
+function formatTimestamp(timestamp: string) {
+  const date = new Date(timestamp);
 
-  const counts = {
-    all: alerts.length,
-    critical: alerts.filter(a => a.priority === "critical").length,
-    warning: alerts.filter(a => a.priority === "warning").length,
-    info: alerts.filter(a => a.priority === "info").length,
-    resolved: alerts.filter(a => a.priority === "resolved").length,
+  if (Number.isNaN(date.getTime())) {
+    return timestamp;
+  }
+
+  return date.toLocaleString("en-IN", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+  });
+}
+
+function formatRelativeTime(timestamp: string) {
+  const date = new Date(timestamp);
+
+  if (Number.isNaN(date.getTime())) {
+    return "—";
+  }
+
+  const diffMs = Date.now() - date.getTime();
+  const diffMinutes = Math.floor(
+    diffMs / (1000 * 60),
+  );
+
+  if (diffMinutes < 1) {
+    return "Just now";
+  }
+
+  if (diffMinutes < 60) {
+    return `${diffMinutes} min ago`;
+  }
+
+  const diffHours = Math.floor(diffMinutes / 60);
+
+  if (diffHours < 24) {
+    return `${diffHours} hr ago`;
+  }
+
+  const diffDays = Math.floor(diffHours / 24);
+
+  if (diffDays === 1) {
+    return "1 day ago";
+  }
+
+  return `${diffDays} days ago`;
+}
+
+export default function Alerts({
+  station,
+}: AlertsProps) {
+  const stationId = getStationId(station);
+
+  const [alerts, setAlerts] = useState<
+    AlertRecord[]
+  >([]);
+  const [filter, setFilter] =
+    useState<AlertFilter>("ALL");
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(
+    null,
+  );
+  const [lastUpdated, setLastUpdated] =
+    useState<Date | null>(null);
+
+  const loadAlerts = async () => {
+    try {
+      setError(null);
+
+      const response = await fetch(
+        `/api/alerts/${stationId}`,
+      );
+
+      if (!response.ok) {
+        throw new Error(
+          `Alert API returned ${response.status}`,
+        );
+      }
+
+      const data: AlertRecord[] =
+        await response.json();
+
+      setAlerts(Array.isArray(data) ? data : []);
+      setLastUpdated(new Date());
+    } catch (err) {
+      console.error(
+        "Alerts API error:",
+        err,
+      );
+
+      setError(
+        "Unable to connect to alert telemetry",
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    setLoading(true);
+    loadAlerts();
+
+    const interval = window.setInterval(
+      loadAlerts,
+      15000,
+    );
+
+    return () =>
+      window.clearInterval(interval);
+  }, [stationId]);
+
+  const counts = useMemo(() => {
+    return {
+      all: alerts.length,
+
+      critical: alerts.filter(
+        (alert) =>
+          alert.severity === "CRITICAL",
+      ).length,
+
+      warning: alerts.filter(
+        (alert) =>
+          alert.severity === "WARNING",
+      ).length,
+
+      info: alerts.filter(
+        (alert) =>
+          alert.severity === "INFO",
+      ).length,
+
+      active: alerts.filter(
+        (alert) => alert.active,
+      ).length,
+
+      acknowledged: alerts.filter(
+        (alert) => alert.acknowledged,
+      ).length,
+    };
+  }, [alerts]);
+
+  const filteredAlerts = useMemo(() => {
+    return alerts.filter((alert) => {
+      switch (filter) {
+        case "CRITICAL":
+          return alert.severity === "CRITICAL";
+
+        case "WARNING":
+          return alert.severity === "WARNING";
+
+        case "INFO":
+          return alert.severity === "INFO";
+
+        case "ACTIVE":
+          return alert.active;
+
+        case "ACKNOWLEDGED":
+          return alert.acknowledged;
+
+        case "ALL":
+        default:
+          return true;
+      }
+    });
+  }, [alerts, filter]);
+
+  const acknowledgeAlert = (id: number) => {
+    setAlerts((current) =>
+      current.map((alert) =>
+        alert.id === id
+          ? {
+              ...alert,
+              acknowledged: true,
+            }
+          : alert,
+      ),
+    );
+  };
+
+  const acknowledgeAll = () => {
+    setAlerts((current) =>
+      current.map((alert) => ({
+        ...alert,
+        acknowledged: true,
+      })),
+    );
   };
 
   return (
-    <div style={{ padding: "20px", display: "flex", flexDirection: "column", gap: 16 }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+    <div
+      style={{
+        padding: "20px",
+        display: "flex",
+        flexDirection: "column",
+        gap: 16,
+      }}
+    >
+      {/* Header */}
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "flex-start",
+        }}
+      >
         <div>
-          <h1 className="font-display" style={{ fontSize: 24, fontWeight: 700, letterSpacing: "0.06em", color: "#e2e8f0" }}>
+          <h1
+            className="font-display"
+            style={{
+              fontSize: 24,
+              fontWeight: 700,
+              letterSpacing: "0.06em",
+              color: "#e2e8f0",
+            }}
+          >
             MISSION ALERTS
           </h1>
-          <p style={{ fontSize: 13, color: "#64748b" }}>Real-time alert monitoring · Recommended actions · Station intelligence</p>
+
+          <p
+            style={{
+              fontSize: 13,
+              color: "#64748b",
+            }}
+          >
+            {station} · Real-time alert
+            monitoring · Predictive risk ·
+            Station intelligence
+          </p>
         </div>
-        <div style={{ display: "flex", gap: 8 }}>
-          <button onClick={() => setAcknowledged(new Set(alerts.map(a => a.id)))} className="btn-secondary" style={{ fontSize: 12 }}>Acknowledge All</button>
-          <button onClick={() => alert("Exported alerts_log.csv")} className="btn-ghost" style={{ fontSize: 12 }}>Export Log</button>
+
+        <div
+          style={{
+            display: "flex",
+            gap: 8,
+            alignItems: "center",
+          }}
+        >
+          <div
+            className="font-mono"
+            style={{
+              fontSize: 9,
+              color: error
+                ? "#ef4444"
+                : "#10b981",
+              marginRight: 8,
+              letterSpacing: "0.08em",
+            }}
+          >
+            ●{" "}
+            {error
+              ? "BACKEND OFFLINE"
+              : "LIVE BACKEND"}
+          </div>
+
+          <button
+            onClick={acknowledgeAll}
+            className="btn-secondary"
+            style={{ fontSize: 12 }}
+          >
+            Acknowledge All
+          </button>
+
+          <button
+            className="btn-ghost"
+            style={{ fontSize: 12 }}
+            onClick={() => {
+              const log = alerts
+                .map(
+                  (alert) =>
+                    `${alert.id},${alert.stationCode},${alert.severity},${alert.alertType},${alert.title},${alert.timestamp}`,
+                )
+                .join("\n");
+
+              const blob = new Blob(
+                [
+                  `ID,Station,Severity,Type,Title,Timestamp\n${log}`,
+                ],
+                {
+                  type: "text/csv",
+                },
+              );
+
+              const url =
+                URL.createObjectURL(blob);
+
+              const link =
+                document.createElement(
+                  "a",
+                );
+
+              link.href = url;
+              link.download = `${station.toLowerCase()}_alerts_log.csv`;
+              link.click();
+
+              URL.revokeObjectURL(url);
+            }}
+          >
+            Export Log
+          </button>
         </div>
       </div>
 
-      {/* Filter tabs */}
-      <div style={{ display: "flex", gap: 6 }}>
-        {(["all", "critical", "warning", "info", "resolved"] as const).map(f => {
-          const meta = f !== "all" ? priorityMeta[f] : { color: "#94a3b8", bg: "", label: "ALL", border: "" };
-          const isActive = filter === f;
+      {/* Summary */}
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns:
+            "repeat(4, 1fr)",
+          gap: 10,
+        }}
+      >
+        <div className="kpi-card">
+          <div
+            className="section-label"
+            style={{ marginBottom: 8 }}
+          >
+            Active Alerts
+          </div>
+
+          <div
+            className="font-display"
+            style={{
+              fontSize: 24,
+              fontWeight: 700,
+              color:
+                counts.active > 0
+                  ? "#f59e0b"
+                  : "#10b981",
+            }}
+          >
+            {counts.active}
+          </div>
+
+          <div
+            style={{
+              fontSize: 10,
+              color: "#475569",
+              marginTop: 3,
+            }}
+          >
+            Current station alerts
+          </div>
+        </div>
+
+        <div className="kpi-card">
+          <div
+            className="section-label"
+            style={{ marginBottom: 8 }}
+          >
+            Critical
+          </div>
+
+          <div
+            className="font-display"
+            style={{
+              fontSize: 24,
+              fontWeight: 700,
+              color:
+                counts.critical > 0
+                  ? "#ef4444"
+                  : "#10b981",
+            }}
+          >
+            {counts.critical}
+          </div>
+
+          <div
+            style={{
+              fontSize: 10,
+              color: "#475569",
+              marginTop: 3,
+            }}
+          >
+            Backend severity
+          </div>
+        </div>
+
+        <div className="kpi-card">
+          <div
+            className="section-label"
+            style={{ marginBottom: 8 }}
+          >
+            Warnings
+          </div>
+
+          <div
+            className="font-display"
+            style={{
+              fontSize: 24,
+              fontWeight: 700,
+              color: "#f59e0b",
+            }}
+          >
+            {counts.warning}
+          </div>
+
+          <div
+            style={{
+              fontSize: 10,
+              color: "#475569",
+              marginTop: 3,
+            }}
+          >
+            Backend severity
+          </div>
+        </div>
+
+        <div className="kpi-card">
+          <div
+            className="section-label"
+            style={{ marginBottom: 8 }}
+          >
+            Acknowledged
+          </div>
+
+          <div
+            className="font-display"
+            style={{
+              fontSize: 24,
+              fontWeight: 700,
+              color: "#10b981",
+            }}
+          >
+            {counts.acknowledged}
+          </div>
+
+          <div
+            style={{
+              fontSize: 10,
+              color: "#475569",
+              marginTop: 3,
+            }}
+          >
+            Current backend records
+          </div>
+        </div>
+      </div>
+
+      {/* Filters */}
+      <div
+        style={{
+          display: "flex",
+          gap: 6,
+          flexWrap: "wrap",
+        }}
+      >
+        {(
+          [
+            "ALL",
+            "CRITICAL",
+            "WARNING",
+            "INFO",
+            "ACTIVE",
+            "ACKNOWLEDGED",
+          ] as AlertFilter[]
+        ).map((item) => {
+          let color = "#94a3b8";
+          let label = item;
+
+          if (item === "CRITICAL") {
+            color = "#ef4444";
+          }
+
+          if (item === "WARNING") {
+            color = "#f59e0b";
+          }
+
+          if (item === "INFO") {
+            color = "#00c8e8";
+          }
+
+          if (item === "ACTIVE") {
+            color = "#10b981";
+          }
+
+          if (item === "ACKNOWLEDGED") {
+            color = "#64748b";
+          }
+
+          const count =
+            item === "ALL"
+              ? counts.all
+              : item === "CRITICAL"
+                ? counts.critical
+                : item === "WARNING"
+                  ? counts.warning
+                  : item === "INFO"
+                    ? counts.info
+                    : item === "ACTIVE"
+                      ? counts.active
+                      : counts.acknowledged;
+
+          const isActive = filter === item;
+
           return (
             <button
-              key={f}
-              onClick={() => setFilter(f)}
+              key={item}
+              onClick={() => setFilter(item)}
               style={{
                 padding: "6px 14px",
                 borderRadius: 4,
                 fontSize: 11,
-                fontFamily: "JetBrains Mono, monospace",
+                fontFamily:
+                  "JetBrains Mono, monospace",
                 letterSpacing: "0.08em",
                 cursor: "pointer",
-                background: isActive ? (f !== "all" ? `${meta.color}12` : "rgba(148,163,184,0.1)") : "transparent",
-                border: isActive ? `1px solid ${meta.color}30` : "1px solid rgba(148,163,184,0.12)",
-                color: isActive ? meta.color : "#475569",
+                background: isActive
+                  ? `${color}12`
+                  : "transparent",
+                border: isActive
+                  ? `1px solid ${color}30`
+                  : "1px solid rgba(148,163,184,0.12)",
+                color: isActive
+                  ? color
+                  : "#475569",
                 transition: "all 0.15s",
                 display: "flex",
                 alignItems: "center",
                 gap: 6,
               }}
             >
-              {meta.label}
-              <span style={{ background: isActive ? `${meta.color}20` : "rgba(148,163,184,0.1)", borderRadius: 8, padding: "0 5px", fontSize: 9 }}>
-                {counts[f]}
+              {label}
+
+              <span
+                style={{
+                  background: isActive
+                    ? `${color}20`
+                    : "rgba(148,163,184,0.1)",
+                  borderRadius: 8,
+                  padding: "0 5px",
+                  fontSize: 9,
+                }}
+              >
+                {count}
               </span>
             </button>
           );
         })}
       </div>
 
+      {/* Loading */}
+      {loading && alerts.length === 0 && (
+        <div
+          className="glass"
+          style={{
+            padding: 30,
+            borderRadius: 8,
+            textAlign: "center",
+            color: "#64748b",
+          }}
+        >
+          Loading live alerts...
+        </div>
+      )}
+
+      {/* Error */}
+      {error && (
+        <div
+          style={{
+            padding: "10px 14px",
+            background:
+              "rgba(239,68,68,0.05)",
+            border:
+              "1px solid rgba(239,68,68,0.2)",
+            borderRadius: 6,
+            color: "#ef4444",
+            fontSize: 11,
+          }}
+        >
+          {error}
+        </div>
+      )}
+
       {/* Alerts */}
-      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-        {filtered.map(alert => {
-          const meta = priorityMeta[alert.priority];
-          const isAcked = acknowledged.has(alert.id);
+      <div
+        style={{
+          display: "flex",
+          flexDirection: "column",
+          gap: 10,
+        }}
+      >
+        {filteredAlerts.map((alert) => {
+          const meta =
+            severityMeta[alert.severity];
+
           return (
             <div
               key={alert.id}
-              className={meta.border}
               style={{
                 borderRadius: 8,
                 padding: "16px 20px",
-                background: isAcked ? "rgba(7,13,26,0.5)" : meta.bg,
+                background:
+                  alert.acknowledged
+                    ? "rgba(7,13,26,0.5)"
+                    : meta.bg,
                 border: `1px solid ${meta.color}20`,
                 borderLeftWidth: 3,
-                opacity: isAcked ? 0.6 : 1,
-                transition: "opacity 0.2s",
+                borderLeftColor:
+                  meta.color,
+                opacity:
+                  alert.acknowledged
+                    ? 0.68
+                    : 1,
+                transition:
+                  "opacity 0.2s",
               }}
             >
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 10 }}>
-                <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
-                  <span style={{ padding: "2px 10px", background: `${meta.color}18`, border: `1px solid ${meta.color}30`, borderRadius: 3, fontSize: 9, fontFamily: "JetBrains Mono", color: meta.color, letterSpacing: "0.12em" }}>
+              {/* Alert header */}
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent:
+                    "space-between",
+                  alignItems:
+                    "flex-start",
+                  marginBottom: 10,
+                }}
+              >
+                <div
+                  style={{
+                    display: "flex",
+                    gap: 10,
+                    alignItems: "center",
+                    flexWrap:
+                      "wrap",
+                  }}
+                >
+                  <span
+                    style={{
+                      padding:
+                        "2px 10px",
+                      background: `${meta.color}18`,
+                      border: `1px solid ${meta.color}30`,
+                      borderRadius: 3,
+                      fontSize: 9,
+                      fontFamily:
+                        "JetBrains Mono",
+                      color:
+                        meta.color,
+                      letterSpacing:
+                        "0.12em",
+                    }}
+                  >
                     {meta.label}
                   </span>
-                  <span className="font-mono" style={{ fontSize: 10, color: "#475569", letterSpacing: "0.06em" }}>{alert.system}</span>
-                  <span className="font-mono" style={{ fontSize: 10, color: "#2d3d50" }}>ID: {alert.id}</span>
-                </div>
-                <span className="font-mono" style={{ fontSize: 10, color: "#475569" }}>{alert.time}</span>
-              </div>
 
-              <div className="font-display" style={{ fontSize: 16, fontWeight: 700, color: "#e2e8f0", marginBottom: 6 }}>{alert.title}</div>
-              <p style={{ fontSize: 12, color: "#94a3b8", lineHeight: 1.6, marginBottom: 12 }}>{alert.description}</p>
-
-              <div style={{ display: "flex", gap: 16, marginBottom: 12 }}>
-                <div style={{ padding: "6px 10px", background: "rgba(7,13,26,0.6)", borderRadius: 4, border: "1px solid rgba(148,163,184,0.08)" }}>
-                  <div className="section-label" style={{ marginBottom: 2 }}>Current Value</div>
-                  <div className="font-mono" style={{ fontSize: 12, color: meta.color, fontWeight: 600 }}>{alert.currentValue}</div>
-                </div>
-                <div style={{ padding: "6px 10px", background: "rgba(7,13,26,0.6)", borderRadius: 4, border: "1px solid rgba(148,163,184,0.08)" }}>
-                  <div className="section-label" style={{ marginBottom: 2 }}>Threshold</div>
-                  <div className="font-mono" style={{ fontSize: 12, color: "#94a3b8", fontWeight: 600 }}>{alert.threshold}</div>
-                </div>
-              </div>
-
-              <div style={{ padding: "8px 12px", background: "rgba(0,200,232,0.04)", border: "1px solid rgba(0,200,232,0.1)", borderRadius: 5, marginBottom: 12 }}>
-                <span className="font-mono" style={{ fontSize: 9, color: "#00c8e8", letterSpacing: "0.1em" }}>RECOMMENDED ACTION: </span>
-                <span style={{ fontSize: 11, color: "#94a3b8" }}>{alert.recommendation}</span>
-              </div>
-
-              {alert.priority !== "resolved" && (
-                <div style={{ display: "flex", gap: 8 }}>
-                  <button onClick={() => alert(`Investigating ${alert.system}...`)} className="btn-primary" style={{ fontSize: 11, padding: "6px 14px" }}>Investigate</button>
-                  <button
-                    className="btn-secondary"
-                    style={{ fontSize: 11, padding: "6px 14px" }}
-                    onClick={() => setAcknowledged(prev => new Set([...prev, alert.id]))}
+                  <span
+                    style={{
+                      padding:
+                        "2px 8px",
+                      background:
+                        "rgba(148,163,184,0.06)",
+                      border:
+                        "1px solid rgba(148,163,184,0.1)",
+                      borderRadius: 3,
+                      fontSize: 9,
+                      fontFamily:
+                        "JetBrains Mono",
+                      color:
+                        "#64748b",
+                      letterSpacing:
+                        "0.08em",
+                    }}
                   >
-                    {isAcked ? "✓ Acknowledged" : "Acknowledge"}
-                  </button>
-                  <button onClick={() => alert(`Opening ${alert.system} diagnostics...`)} className="btn-ghost" style={{ fontSize: 11, padding: "6px 14px" }}>View System</button>
+                    {alert.alertType}
+                  </span>
+
+                  <span
+                    className="font-mono"
+                    style={{
+                      fontSize: 10,
+                      color: "#475569",
+                      letterSpacing:
+                        "0.06em",
+                    }}
+                  >
+                    {alert.source}
+                  </span>
+
+                  <span
+                    className="font-mono"
+                    style={{
+                      fontSize: 10,
+                      color: "#2d3d50",
+                    }}
+                  >
+                    ID: {alert.id}
+                  </span>
                 </div>
-              )}
+
+                <div
+                  style={{
+                    textAlign: "right",
+                  }}
+                >
+                  <div
+                    className="font-mono"
+                    style={{
+                      fontSize: 10,
+                      color: "#475569",
+                    }}
+                  >
+                    {formatRelativeTime(
+                      alert.timestamp,
+                    )}
+                  </div>
+
+                  <div
+                    className="font-mono"
+                    style={{
+                      fontSize: 8,
+                      color: "#334155",
+                      marginTop: 2,
+                    }}
+                  >
+                    {formatTimestamp(
+                      alert.timestamp,
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Title */}
+              <div
+                className="font-display"
+                style={{
+                  fontSize: 16,
+                  fontWeight: 700,
+                  color: "#e2e8f0",
+                  marginBottom: 6,
+                }}
+              >
+                {alert.title}
+              </div>
+
+              {/* Message */}
+              <p
+                style={{
+                  fontSize: 12,
+                  color: "#94a3b8",
+                  lineHeight: 1.6,
+                  marginBottom: 12,
+                }}
+              >
+                {alert.message}
+              </p>
+
+              {/* Metadata */}
+              <div
+                style={{
+                  display: "flex",
+                  gap: 10,
+                  flexWrap: "wrap",
+                  marginBottom: 12,
+                }}
+              >
+                <div
+                  style={{
+                    padding:
+                      "6px 10px",
+                    background:
+                      "rgba(7,13,26,0.6)",
+                    borderRadius: 4,
+                    border:
+                      "1px solid rgba(148,163,184,0.08)",
+                  }}
+                >
+                  <div
+                    className="section-label"
+                    style={{
+                      marginBottom: 2,
+                    }}
+                  >
+                    STATUS
+                  </div>
+
+                  <div
+                    className="font-mono"
+                    style={{
+                      fontSize: 11,
+                      color:
+                        alert.active
+                          ? "#10b981"
+                          : "#64748b",
+                      fontWeight: 600,
+                    }}
+                  >
+                    {alert.active
+                      ? "ACTIVE"
+                      : "INACTIVE"}
+                  </div>
+                </div>
+
+                <div
+                  style={{
+                    padding:
+                      "6px 10px",
+                    background:
+                      "rgba(7,13,26,0.6)",
+                    borderRadius: 4,
+                    border:
+                      "1px solid rgba(148,163,184,0.08)",
+                  }}
+                >
+                  <div
+                    className="section-label"
+                    style={{
+                      marginBottom: 2,
+                    }}
+                  >
+                    ACKNOWLEDGEMENT
+                  </div>
+
+                  <div
+                    className="font-mono"
+                    style={{
+                      fontSize: 11,
+                      color:
+                        alert.acknowledged
+                          ? "#10b981"
+                          : "#f59e0b",
+                      fontWeight: 600,
+                    }}
+                  >
+                    {alert.acknowledged
+                      ? "ACKNOWLEDGED"
+                      : "PENDING"}
+                  </div>
+                </div>
+
+                <div
+                  style={{
+                    padding:
+                      "6px 10px",
+                    background:
+                      "rgba(7,13,26,0.6)",
+                    borderRadius: 4,
+                    border:
+                      "1px solid rgba(148,163,184,0.08)",
+                  }}
+                >
+                  <div
+                    className="section-label"
+                    style={{
+                      marginBottom: 2,
+                    }}
+                  >
+                    STATION
+                  </div>
+
+                  <div
+                    className="font-mono"
+                    style={{
+                      fontSize: 11,
+                      color: "#94a3b8",
+                      fontWeight: 600,
+                    }}
+                  >
+                    {alert.stationCode}
+                  </div>
+                </div>
+              </div>
+
+              {/* Actions */}
+              <div
+                style={{
+                  display: "flex",
+                  gap: 8,
+                }}
+              >
+                {alert.active && (
+                  <button
+                    onClick={() =>
+                      acknowledgeAlert(
+                        alert.id,
+                      )
+                    }
+                    className="btn-secondary"
+                    style={{
+                      fontSize: 11,
+                      padding:
+                        "6px 14px",
+                    }}
+                    disabled={
+                      alert.acknowledged
+                    }
+                  >
+                    {alert.acknowledged
+                      ? "✓ Acknowledged"
+                      : "Acknowledge"}
+                  </button>
+                )}
+
+                <button
+                  className="btn-primary"
+                  style={{
+                    fontSize: 11,
+                    padding:
+                      "6px 14px",
+                  }}
+                  onClick={() =>
+                    console.log(
+                      "Investigating alert:",
+                      alert,
+                    )
+                  }
+                >
+                  Investigate
+                </button>
+
+                <button
+                  className="btn-ghost"
+                  style={{
+                    fontSize: 11,
+                    padding:
+                      "6px 14px",
+                  }}
+                  onClick={() =>
+                    console.log(
+                      "Opening diagnostics for:",
+                      alert.source,
+                    )
+                  }
+                >
+                  View System
+                </button>
+              </div>
             </div>
           );
         })}
+
+        {!loading &&
+          filteredAlerts.length === 0 && (
+            <div
+              className="glass"
+              style={{
+                padding: 30,
+                borderRadius: 8,
+                textAlign: "center",
+                color: "#64748b",
+              }}
+            >
+              No alerts match the selected
+              filter for {station}.
+            </div>
+          )}
+      </div>
+
+      {/* Footer */}
+      <div
+        style={{
+          display: "flex",
+          justifyContent:
+            "space-between",
+          alignItems: "center",
+          padding: "10px 4px",
+        }}
+      >
+        <div
+          className="font-mono"
+          style={{
+            fontSize: 9,
+            color: "#475569",
+          }}
+        >
+          SOURCE: /api/alerts/{stationId}
+        </div>
+
+        <div
+          className="font-mono"
+          style={{
+            fontSize: 9,
+            color: "#475569",
+          }}
+        >
+          LAST SYNC:{" "}
+          {lastUpdated
+            ? lastUpdated.toLocaleTimeString()
+            : "—"}{" "}
+          · REFRESH: 15s
+        </div>
       </div>
     </div>
   );

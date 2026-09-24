@@ -43,17 +43,30 @@ function initialTheme() {
 
 export default function App() {
   const [loggedIn, setLoggedIn] = useState(false);
-  const [screen, setScreen] = useState<Screen>('overview');
-  const [station, setStation] = useState<'MAITRI' | 'BHARATI'>('MAITRI');
-  const [theme, setTheme] = useState<string>(initialTheme);
+
+  const [screen, setScreen] =
+    useState<Screen>('overview');
+
+  const [station, setStation] =
+    useState<'MAITRI' | 'BHARATI'>('MAITRI');
+
+  const [theme, setTheme] =
+    useState<string>(initialTheme);
 
   useEffect(() => {
-    document.documentElement.dataset.theme = theme.toLowerCase();
+    document.documentElement.dataset.theme =
+      theme.toLowerCase();
 
     if (theme === 'Dark') {
-      localStorage.setItem('antaris-theme', 'Dark');
+      localStorage.setItem(
+        'antaris-theme',
+        'Dark',
+      );
     } else {
-      localStorage.setItem('antaris-theme', 'Light');
+      localStorage.setItem(
+        'antaris-theme',
+        'Light',
+      );
     }
   }, [theme]);
 
@@ -66,19 +79,25 @@ export default function App() {
         return <DigitalTwin station={station} />;
 
       case 'environment':
-        return <Environment station={station} />;
+        return (
+          <Environment station={station} />
+        );
 
       case 'energy':
         return <Energy station={station} />;
 
       case 'logistics':
-        return <Logistics station={station} />;
+        return (
+          <Logistics station={station} />
+        );
 
       case 'equipment':
-        return <Equipment station={station} />;
+        return (
+          <Equipment station={station} />
+        );
 
       case 'predictions':
-        return <Predictions />;
+        return <Predictions station={station} />;
 
       case 'simulation':
         return <Simulation />;
@@ -87,10 +106,12 @@ export default function App() {
         return <ScenarioComparison />;
 
       case 'alerts':
-        return <Alerts />;
+        return <Alerts station={station} />;
 
       case 'maintenance':
-        return <Maintenance />;
+        return (
+          <Maintenance station={station} />
+        );
 
       case 'reports':
         return <Reports />;
@@ -103,12 +124,19 @@ export default function App() {
           <Profile
             theme={theme}
             onTheme={setTheme}
-            onLogout={() => setLoggedIn(false)}
+            onLogout={() =>
+              setLoggedIn(false)
+            }
           />
         );
 
       case 'settings':
-        return <Settings theme={theme} onTheme={setTheme} />;
+        return (
+          <Settings
+            theme={theme}
+            onTheme={setTheme}
+          />
+        );
 
       default:
         return <Overview station={station} />;
@@ -116,7 +144,11 @@ export default function App() {
   };
 
   if (!loggedIn) {
-    return <Login onLogin={() => setLoggedIn(true)} />;
+    return (
+      <Login
+        onLogin={() => setLoggedIn(true)}
+      />
+    );
   }
 
   return (
@@ -142,23 +174,33 @@ function Settings({
   theme: string;
   onTheme: (t: string) => void;
 }) {
-  const [refreshRate, setRefreshRate] = useState('5s');
-  const [alertSound, setAlertSound] = useState(true);
-  const [retention, setRetention] = useState('30d');
-  const [sensitivity, setSensitivity] = useState('medium');
+  const [refreshRate, setRefreshRate] =
+    useState('5s');
+
+  const [alertSound, setAlertSound] =
+    useState(true);
+
+  const [retention, setRetention] =
+    useState('30d');
+
+  const [sensitivity, setSensitivity] =
+    useState('medium');
 
   return (
     <div className="page-shell">
       <div className="page-heading">
         <div>
-          <div className="eyebrow">PLATFORM / CONFIGURATION</div>
+          <div className="eyebrow">
+            PLATFORM / CONFIGURATION
+          </div>
 
           <h1 className="page-title">
             SYSTEM SETTINGS
           </h1>
 
           <p className="page-subtitle">
-            Mission platform configuration and operator preferences.
+            Mission platform configuration and
+            operator preferences.
           </p>
         </div>
       </div>
@@ -174,17 +216,24 @@ function Settings({
               gap: '8px',
             }}
           >
-            <span style={{ fontWeight: 600 }}>
+            <span
+              style={{ fontWeight: 600 }}
+            >
               Telemetry Refresh Rate
             </span>
 
             <select
               value={refreshRate}
-              onChange={(e) => setRefreshRate(e.target.value)}
+              onChange={(e) =>
+                setRefreshRate(
+                  e.target.value,
+                )
+              }
               style={{
                 background: '#0f172a',
                 color: '#e2e8f0',
-                border: '1px solid rgba(255,255,255,0.15)',
+                border:
+                  '1px solid rgba(255,255,255,0.15)',
                 padding: '6px',
                 borderRadius: '4px',
               }}
@@ -230,8 +279,11 @@ function Settings({
               </option>
             </select>
 
-            <small style={{ opacity: 0.6 }}>
-              How often dashboard telemetry updates.
+            <small
+              style={{ opacity: 0.6 }}
+            >
+              How often dashboard telemetry
+              updates.
             </small>
           </div>
 
@@ -244,17 +296,24 @@ function Settings({
               gap: '8px',
             }}
           >
-            <span style={{ fontWeight: 600 }}>
+            <span
+              style={{ fontWeight: 600 }}
+            >
               Alert Sensitivity
             </span>
 
             <select
               value={sensitivity}
-              onChange={(e) => setSensitivity(e.target.value)}
+              onChange={(e) =>
+                setSensitivity(
+                  e.target.value,
+                )
+              }
               style={{
                 background: '#0f172a',
                 color: '#e2e8f0',
-                border: '1px solid rgba(255,255,255,0.15)',
+                border:
+                  '1px solid rgba(255,255,255,0.15)',
                 padding: '6px',
                 borderRadius: '4px',
               }}
@@ -290,7 +349,9 @@ function Settings({
               </option>
             </select>
 
-            <small style={{ opacity: 0.6 }}>
+            <small
+              style={{ opacity: 0.6 }}
+            >
               Threshold for triggering AI alerts.
             </small>
           </div>
@@ -304,12 +365,18 @@ function Settings({
               gap: '8px',
             }}
           >
-            <span style={{ fontWeight: 600 }}>
+            <span
+              style={{ fontWeight: 600 }}
+            >
               Notification Sounds
             </span>
 
             <button
-              onClick={() => setAlertSound(!alertSound)}
+              onClick={() =>
+                setAlertSound(
+                  !alertSound,
+                )
+              }
               style={{
                 padding: '6px 12px',
                 background: alertSound
@@ -322,10 +389,14 @@ function Settings({
                 textAlign: 'left',
               }}
             >
-              {alertSound ? 'Enabled' : 'Muted'}
+              {alertSound
+                ? 'Enabled'
+                : 'Muted'}
             </button>
 
-            <small style={{ opacity: 0.6 }}>
+            <small
+              style={{ opacity: 0.6 }}
+            >
               Play sounds for incoming alerts.
             </small>
           </div>
@@ -339,17 +410,24 @@ function Settings({
               gap: '8px',
             }}
           >
-            <span style={{ fontWeight: 600 }}>
+            <span
+              style={{ fontWeight: 600 }}
+            >
               Data Retention Policy
             </span>
 
             <select
               value={retention}
-              onChange={(e) => setRetention(e.target.value)}
+              onChange={(e) =>
+                setRetention(
+                  e.target.value,
+                )
+              }
               style={{
                 background: '#0f172a',
                 color: '#e2e8f0',
-                border: '1px solid rgba(255,255,255,0.15)',
+                border:
+                  '1px solid rgba(255,255,255,0.15)',
                 padding: '6px',
                 borderRadius: '4px',
               }}
@@ -395,8 +473,11 @@ function Settings({
               </option>
             </select>
 
-            <small style={{ opacity: 0.6 }}>
-              Duration to store historical telemetry.
+            <small
+              style={{ opacity: 0.6 }}
+            >
+              Duration to store historical
+              telemetry.
             </small>
           </div>
         </div>
@@ -407,17 +488,24 @@ function Settings({
           </div>
 
           <p className="panel-note">
-            Choose the ANTARIS interface appearance. All mission
-            surfaces use the same design system in either mode.
+            Choose the ANTARIS interface
+            appearance. All mission surfaces
+            use the same design system in either
+            mode.
           </p>
 
           <select
             value={theme}
-            onChange={(e) => onTheme(e.target.value)}
+            onChange={(e) =>
+              onTheme(e.target.value)
+            }
             className="theme-select large"
           >
             {themes.map((t) => (
-              <option key={t} value={t}>
+              <option
+                key={t}
+                value={t}
+              >
                 {t}
               </option>
             ))}
@@ -429,13 +517,18 @@ function Settings({
                 key={t}
                 className={
                   'theme-chip ' +
-                  (theme === t ? 'selected' : '')
+                  (theme === t
+                    ? 'selected'
+                    : '')
                 }
-                onClick={() => onTheme(t)}
+                onClick={() =>
+                  onTheme(t)
+                }
               >
                 <span
                   className={
-                    'appearance-dot ' + t.toLowerCase()
+                    'appearance-dot ' +
+                    t.toLowerCase()
                   }
                 />
 

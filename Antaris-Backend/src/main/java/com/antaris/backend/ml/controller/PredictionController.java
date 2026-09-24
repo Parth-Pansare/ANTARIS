@@ -11,7 +11,12 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/predictions")
-@CrossOrigin(origins = "http://localhost:5173")
+@CrossOrigin(
+        origins = {
+                "http://localhost:5173",
+                "http://localhost:8443"
+        }
+)
 public class PredictionController {
 
     private final PredictionService predictionService;
@@ -136,12 +141,15 @@ public class PredictionController {
         );
     }
 
-    // EQUIPMENT ANOMALY
+    // ============================================================
+    // EQUIPMENT ANOMALY PREDICTION
+    // ============================================================
 
     @PostMapping("/equipment")
     public ResponseEntity<PredictionResponse> predictEquipment(
             @RequestBody PredictionRequest request
     ) {
+
         return ResponseEntity.ok(
                 predictionService.predictEquipment(request)
         );
@@ -151,8 +159,11 @@ public class PredictionController {
     public ResponseEntity<PredictionResponse> predictCurrentEquipment(
             @RequestParam(defaultValue = "1") int horizonHours
     ) {
+
         return ResponseEntity.ok(
-                predictionService.predictCurrentEquipment(horizonHours)
+                predictionService.predictCurrentEquipment(
+                        horizonHours
+                )
         );
     }
 
@@ -161,8 +172,10 @@ public class PredictionController {
     getEquipmentPredictionHistory(
             @PathVariable Long stationId
     ) {
+
         return ResponseEntity.ok(
-                predictionService.getEquipmentPredictionHistory(stationId)
+                predictionService
+                        .getEquipmentPredictionHistory(stationId)
         );
     }
 }
