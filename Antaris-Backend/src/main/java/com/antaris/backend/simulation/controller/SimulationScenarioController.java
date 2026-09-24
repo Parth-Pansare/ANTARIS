@@ -9,7 +9,12 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/simulation/scenarios")
-@CrossOrigin(origins = "http://localhost:5173")
+@CrossOrigin(
+        origins = {
+                "http://localhost:5173",
+                "http://localhost:8443"
+        }
+)
 public class SimulationScenarioController {
 
     private final SimulationScenarioService scenarioService;
@@ -24,13 +29,11 @@ public class SimulationScenarioController {
     public SimulationScenarioEntity createScenario(
             @RequestBody ScenarioRequest request
     ) {
-
         return scenarioService.createScenario(request);
     }
 
     @GetMapping
     public List<SimulationScenarioEntity> getAllScenarios() {
-
         return scenarioService.getAllScenarios();
     }
 
@@ -38,7 +41,6 @@ public class SimulationScenarioController {
     public SimulationScenarioEntity getScenarioById(
             @PathVariable Long id
     ) {
-
         return scenarioService.getScenarioById(id);
     }
 
@@ -46,7 +48,6 @@ public class SimulationScenarioController {
     public List<SimulationScenarioEntity> getScenariosByStation(
             @PathVariable String stationCode
     ) {
-
         return scenarioService.getScenariosByStation(
                 stationCode
         );
@@ -56,7 +57,6 @@ public class SimulationScenarioController {
     public void deleteScenario(
             @PathVariable Long id
     ) {
-
         scenarioService.deleteScenario(id);
     }
 }

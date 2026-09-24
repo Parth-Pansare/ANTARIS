@@ -100,7 +100,7 @@ export default function App() {
         return <Predictions station={station} />;
 
       case 'simulation':
-        return <Simulation />;
+        return <Simulation station={station} />;
 
       case 'scenariocmp':
         return <ScenarioComparison />;
@@ -238,43 +238,19 @@ function Settings({
                 borderRadius: '4px',
               }}
             >
-              <option
-                value="1s"
-                style={{
-                  background: '#0f172a',
-                  color: '#e2e8f0',
-                }}
-              >
+              <option value="1s">
                 1 Second
               </option>
 
-              <option
-                value="5s"
-                style={{
-                  background: '#0f172a',
-                  color: '#e2e8f0',
-                }}
-              >
+              <option value="5s">
                 5 Seconds
               </option>
 
-              <option
-                value="15s"
-                style={{
-                  background: '#0f172a',
-                  color: '#e2e8f0',
-                }}
-              >
+              <option value="15s">
                 15 Seconds
               </option>
 
-              <option
-                value="60s"
-                style={{
-                  background: '#0f172a',
-                  color: '#e2e8f0',
-                }}
-              >
+              <option value="60s">
                 60 Seconds
               </option>
             </select>
@@ -318,33 +294,15 @@ function Settings({
                 borderRadius: '4px',
               }}
             >
-              <option
-                value="low"
-                style={{
-                  background: '#0f172a',
-                  color: '#e2e8f0',
-                }}
-              >
+              <option value="low">
                 Low (Only Critical)
               </option>
 
-              <option
-                value="medium"
-                style={{
-                  background: '#0f172a',
-                  color: '#e2e8f0',
-                }}
-              >
+              <option value="medium">
                 Medium (Warning & Critical)
               </option>
 
-              <option
-                value="high"
-                style={{
-                  background: '#0f172a',
-                  color: '#e2e8f0',
-                }}
-              >
+              <option value="high">
                 High (All Anomalies)
               </option>
             </select>
@@ -432,43 +390,19 @@ function Settings({
                 borderRadius: '4px',
               }}
             >
-              <option
-                value="7d"
-                style={{
-                  background: '#0f172a',
-                  color: '#e2e8f0',
-                }}
-              >
+              <option value="7d">
                 7 Days
               </option>
 
-              <option
-                value="30d"
-                style={{
-                  background: '#0f172a',
-                  color: '#e2e8f0',
-                }}
-              >
+              <option value="30d">
                 30 Days
               </option>
 
-              <option
-                value="90d"
-                style={{
-                  background: '#0f172a',
-                  color: '#e2e8f0',
-                }}
-              >
+              <option value="90d">
                 90 Days
               </option>
 
-              <option
-                value="1y"
-                style={{
-                  background: '#0f172a',
-                  color: '#e2e8f0',
-                }}
-              >
+              <option value="1y">
                 1 Year
               </option>
             </select>
