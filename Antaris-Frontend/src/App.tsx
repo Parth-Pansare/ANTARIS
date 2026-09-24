@@ -72,7 +72,7 @@ export default function App() {
         return <Energy station={station} />;
 
       case 'logistics':
-        return <Logistics />;
+        return <Logistics station={station} />;
 
       case 'equipment':
         return <Equipment station={station} />;
