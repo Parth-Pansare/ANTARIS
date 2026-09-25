@@ -9,7 +9,17 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/alerts")
-@CrossOrigin(origins = "http://localhost:5173")
+@CrossOrigin(
+        origins = {
+                "http://localhost:5173",
+                "http://localhost:8443"
+        },
+        methods = {
+                RequestMethod.GET,
+                RequestMethod.PUT,
+                RequestMethod.OPTIONS
+        }
+)
 public class AlertController {
 
     private final AlertService alertService;

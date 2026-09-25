@@ -84,9 +84,7 @@ function formatRelativeTime(timestamp: string) {
   }
 
   const diffMs = Date.now() - date.getTime();
-  const diffMinutes = Math.floor(
-    diffMs / (1000 * 60),
-  );
+  const diffMinutes = Math.floor(diffMs / (1000 * 60));
 
   if (diffMinutes < 1) {
     return "Just now";
@@ -119,12 +117,25 @@ export default function Alerts({
   const [alerts, setAlerts] = useState<
     AlertRecord[]
   >([]);
+
   const [filter, setFilter] =
     useState<AlertFilter>("ALL");
+
   const [loading, setLoading] = useState(true);
+
   const [error, setError] = useState<string | null>(
     null,
   );
+
+  const [actionError, setActionError] =
+    useState<string | null>(null);
+
+  const [acknowledgingId, setAcknowledgingId] =
+    useState<number | null>(null);
+
+  const [acknowledgingAll, setAcknowledgingAll] =
+    useState(false);
+
   const [lastUpdated, setLastUpdated] =
     useState<Date | null>(null);
 
@@ -173,6 +184,122 @@ export default function Alerts({
     return () =>
       window.clearInterval(interval);
   }, [stationId]);
+
+  const acknowledgeAlert = async (
+    id: number,
+  ) => {
+    try {
+      setActionError(null);
+      setAcknowledgingId(id);
+
+      const response = await fetch(
+        `/api/alerts/item/${id}/acknowledge`,
+        {
+          method: "PUT",
+          headers: {
+            "Content-Type":
+              "application/json",
+          },
+        },
+      );
+
+      if (!response.ok) {
+        throw new Error(
+          `Acknowledge API returned ${response.status}`,
+        );
+      }
+
+      const updatedAlert: AlertRecord =
+        await response.json();
+
+      setAlerts((current) =>
+        current.map((alert) =>
+          alert.id === id
+            ? updatedAlert
+            : alert,
+        ),
+      );
+
+      setLastUpdated(new Date());
+    } catch (err) {
+      console.error(
+        "Acknowledge alert error:",
+        err,
+      );
+
+      setActionError(
+        `Failed to acknowledge alert #${id}`,
+      );
+    } finally {
+      setAcknowledgingId(null);
+    }
+  };
+
+  const acknowledgeAll = async () => {
+    const pendingAlerts = alerts.filter(
+      (alert) => !alert.acknowledged,
+    );
+
+    if (pendingAlerts.length === 0) {
+      return;
+    }
+
+    try {
+      setActionError(null);
+      setAcknowledgingAll(true);
+
+      const results =
+        await Promise.allSettled(
+          pendingAlerts.map((alert) =>
+            fetch(
+              `/api/alerts/item/${alert.id}/acknowledge`,
+              {
+                method: "PUT",
+                headers: {
+                  "Content-Type":
+                    "application/json",
+                },
+              },
+            ),
+          ),
+        );
+
+      const failedIds: number[] = [];
+
+      results.forEach(
+        (result, index) => {
+          if (
+            result.status ===
+              "rejected" ||
+            !result.value.ok
+          ) {
+            failedIds.push(
+              pendingAlerts[index].id,
+            );
+          }
+        },
+      );
+
+      if (failedIds.length > 0) {
+        setActionError(
+          `Failed to acknowledge ${failedIds.length} alert(s).`,
+        );
+      }
+
+      await loadAlerts();
+    } catch (err) {
+      console.error(
+        "Acknowledge all error:",
+        err,
+      );
+
+      setActionError(
+        "Failed to acknowledge all alerts.",
+      );
+    } finally {
+      setAcknowledgingAll(false);
+    }
+  };
 
   const counts = useMemo(() => {
     return {
@@ -227,28 +354,6 @@ export default function Alerts({
       }
     });
   }, [alerts, filter]);
-
-  const acknowledgeAlert = (id: number) => {
-    setAlerts((current) =>
-      current.map((alert) =>
-        alert.id === id
-          ? {
-              ...alert,
-              acknowledged: true,
-            }
-          : alert,
-      ),
-    );
-  };
-
-  const acknowledgeAll = () => {
-    setAlerts((current) =>
-      current.map((alert) => ({
-        ...alert,
-        acknowledged: true,
-      })),
-    );
-  };
 
   return (
     <div
@@ -320,8 +425,17 @@ export default function Alerts({
             onClick={acknowledgeAll}
             className="btn-secondary"
             style={{ fontSize: 12 }}
+            disabled={
+              acknowledgingAll ||
+              alerts.every(
+                (alert) =>
+                  alert.acknowledged,
+              )
+            }
           >
-            Acknowledge All
+            {acknowledgingAll
+              ? "Acknowledging..."
+              : "Acknowledge All"}
           </button>
 
           <button
@@ -363,6 +477,24 @@ export default function Alerts({
           </button>
         </div>
       </div>
+
+      {/* Action error */}
+      {actionError && (
+        <div
+          style={{
+            padding: "10px 14px",
+            background:
+              "rgba(239,68,68,0.05)",
+            border:
+              "1px solid rgba(239,68,68,0.2)",
+            borderRadius: 6,
+            color: "#ef4444",
+            fontSize: 11,
+          }}
+        >
+          {actionError}
+        </div>
+      )}
 
       {/* Summary */}
       <div
@@ -554,12 +686,15 @@ export default function Alerts({
                       ? counts.active
                       : counts.acknowledged;
 
-          const isActive = filter === item;
+          const isActive =
+            filter === item;
 
           return (
             <button
               key={item}
-              onClick={() => setFilter(item)}
+              onClick={() =>
+                setFilter(item)
+              }
               style={{
                 padding: "6px 14px",
                 borderRadius: 4,
@@ -603,19 +738,20 @@ export default function Alerts({
       </div>
 
       {/* Loading */}
-      {loading && alerts.length === 0 && (
-        <div
-          className="glass"
-          style={{
-            padding: 30,
-            borderRadius: 8,
-            textAlign: "center",
-            color: "#64748b",
-          }}
-        >
-          Loading live alerts...
-        </div>
-      )}
+      {loading &&
+        alerts.length === 0 && (
+          <div
+            className="glass"
+            style={{
+              padding: 30,
+              borderRadius: 8,
+              textAlign: "center",
+              color: "#64748b",
+            }}
+          >
+            Loading live alerts...
+          </div>
+        )}
 
       {/* Error */}
       {error && (
@@ -646,6 +782,10 @@ export default function Alerts({
         {filteredAlerts.map((alert) => {
           const meta =
             severityMeta[alert.severity];
+
+          const isAcknowledging =
+            acknowledgingId ===
+            alert.id;
 
           return (
             <div
@@ -946,12 +1086,16 @@ export default function Alerts({
                         "6px 14px",
                     }}
                     disabled={
-                      alert.acknowledged
+                      alert.acknowledged ||
+                      isAcknowledging ||
+                      acknowledgingAll
                     }
                   >
-                    {alert.acknowledged
-                      ? "✓ Acknowledged"
-                      : "Acknowledge"}
+                    {isAcknowledging
+                      ? "Acknowledging..."
+                      : alert.acknowledged
+                        ? "✓ Acknowledged"
+                        : "Acknowledge"}
                   </button>
                 )}
 
