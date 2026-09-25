@@ -120,7 +120,7 @@ function numberValue(
 function stringValue(
   source: Record<string, unknown> | null | undefined,
   keys: string[],
-  fallback = "—",
+  fallback = "â€”",
 ): string {
   if (!source) return fallback;
 
@@ -417,6 +417,7 @@ export default function ScenarioComparison({
       );
 
       if (!predictionResponse.ok) {
+        setPrediction(null);
         const message = await predictionResponse.text();
 
         throw new Error(
@@ -468,6 +469,7 @@ export default function ScenarioComparison({
 
     setLoading(true);
     setError("");
+    setPrediction(null);
     setSimulation(null);
     setDecision(null);
     setRecommendations(null);
@@ -483,7 +485,7 @@ export default function ScenarioComparison({
 
     try {
       /*
-       * STEP 1 — MONITOR
+       * STEP 1 â€” MONITOR
        */
       const dashboardResponse = await fetch(
         `/api/dashboard/${station === "MAITRI" ? 1 : 2}`,
@@ -508,7 +510,7 @@ export default function ScenarioComparison({
       });
 
       /*
-       * STEP 2 — PREDICT
+       * STEP 2 â€” PREDICT
        */
       const simulatorResponse = await fetch(
         `/api/simulator/station/${station}`,
@@ -553,7 +555,7 @@ export default function ScenarioComparison({
       });
 
       /*
-       * STEP 3 — SIMULATE
+       * STEP 3 â€” SIMULATE
        *
        * Use controlled, valid scenario changes.
        * Wind is deliberately kept at 0 to stay inside
@@ -661,7 +663,7 @@ export default function ScenarioComparison({
       });
 
       /*
-       * STEP 4 — DECIDE
+       * STEP 4 â€” DECIDE
        */
       const impactBody = JSON.stringify(
         simulationResult.impact,
@@ -834,7 +836,7 @@ export default function ScenarioComparison({
     0,
   );
 
-  const decisionRisk = decision?.riskLevel ?? "—";
+  const decisionRisk = decision?.riskLevel ?? "â€”";
   const riskScore =
     typeof decision?.riskScore === "number"
       ? decision.riskScore
@@ -890,8 +892,8 @@ export default function ScenarioComparison({
               color: "#64748b",
             }}
           >
-            MONITOR → PREDICT → SIMULATE → DECIDE
-            {" · "}
+            MONITOR â†’ PREDICT â†’ SIMULATE â†’ DECIDE
+            {" Â· "}
             Live backend integration
           </p>
         </div>
@@ -944,7 +946,7 @@ export default function ScenarioComparison({
             fontFamily: "JetBrains Mono",
           }}
         >
-          WORKFLOW ERROR · {error}
+          WORKFLOW ERROR Â· {error}
         </div>
       )}
 
@@ -1077,7 +1079,7 @@ export default function ScenarioComparison({
               marginBottom: 8,
             }}
           >
-            01 / MONITOR · LIVE STATION STATE
+            01 / MONITOR Â· LIVE STATION STATE
           </div>
 
           <div
@@ -1094,7 +1096,7 @@ export default function ScenarioComparison({
                 dashboard.environment?.temperature ?? 0,
                 1,
               )}
-              unit="°C"
+              unit="Â°C"
             />
 
             <Metric
@@ -1156,7 +1158,7 @@ export default function ScenarioComparison({
               marginBottom: 8,
             }}
           >
-            02 / PREDICT · ML SERVICE
+            02 / PREDICT Â· ML SERVICE
           </div>
 
           <div
@@ -1215,7 +1217,7 @@ export default function ScenarioComparison({
               marginBottom: 8,
             }}
           >
-            03 / SIMULATE · BACKEND WHAT-IF ENGINE
+            03 / SIMULATE Â· BACKEND WHAT-IF ENGINE
           </div>
 
           <div
@@ -1403,7 +1405,7 @@ export default function ScenarioComparison({
               marginBottom: 8,
             }}
           >
-            04 / DECIDE · OPERATIONAL DECISION ENGINE
+            04 / DECIDE Â· OPERATIONAL DECISION ENGINE
           </div>
 
           <div
@@ -1436,7 +1438,7 @@ export default function ScenarioComparison({
                   ),
                 }}
               >
-                {decision.decision ?? "—"}
+                {decision.decision ?? "â€”"}
               </div>
 
               <div
@@ -1447,7 +1449,7 @@ export default function ScenarioComparison({
                   color: "#64748b",
                 }}
               >
-                {decision.decisionCode ?? "—"}
+                {decision.decisionCode ?? "â€”"}
               </div>
 
               <div
@@ -1493,7 +1495,7 @@ export default function ScenarioComparison({
                   >
                     {riskScore !== null
                       ? formatNumber(riskScore, 2)
-                      : "—"}
+                      : "â€”"}
                   </div>
                 </div>
 
@@ -1512,7 +1514,7 @@ export default function ScenarioComparison({
                     }}
                   >
                     {decision.primaryRisk ??
-                      "—"}
+                      "â€”"}
                   </div>
                 </div>
               </div>
@@ -1598,7 +1600,7 @@ export default function ScenarioComparison({
                           }}
                         >
                           {item.priority ??
-                            "—"}
+                            "â€”"}
                         </span>
                       </div>
 
@@ -1706,7 +1708,7 @@ export default function ScenarioComparison({
                   letterSpacing: "0.08em",
                 }}
               >
-                OPERATIONAL IMPLICATION ·{" "}
+                OPERATIONAL IMPLICATION Â·{" "}
               </span>
 
               {explanation.operationalImplication}
