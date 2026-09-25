@@ -103,6 +103,9 @@ export default function Shell(p: Props) {
   const [searchOpen, setSearchOpen] =
     React.useState(false);
 
+  const [stationOpen, setStationOpen] =
+    React.useState(false);
+
   const searchInputRef =
     React.useRef<HTMLInputElement>(null);
 
@@ -200,27 +203,116 @@ export default function Shell(p: Props) {
               ACTIVE STATION
             </span>
 
-            <select
-              value={p.station}
-              onChange={(e) =>
-                p.onStationChange(
-                  e.target.value as
-                    | 'MAITRI'
-                    | 'BHARATI',
-                )
-              }
+            <div
+              style={{
+                position: 'relative',
+                width: '100%',
+              }}
             >
-              {stations.map(
-                (station) => (
-                  <option
-                    key={station}
-                    value={station}
-                  >
-                    {station}
-                  </option>
-                ),
+              <button
+                type="button"
+                onClick={() =>
+                  setStationOpen((open) => !open)
+                }
+                aria-haspopup="listbox"
+                aria-expanded={stationOpen}
+                style={{
+                  width: '100%',
+                  height: 38,
+                  padding: '0 12px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  background: '#061923',
+                  color: '#00d9ff',
+                  border: '1px solid #00d9ff',
+                  borderRadius: 8,
+                  fontFamily: 'inherit',
+                  fontSize: 16,
+                  fontWeight: 600,
+                  letterSpacing: '0.02em',
+                  cursor: 'pointer',
+                }}
+              >
+                <span>{p.station}</span>
+                <span
+                  style={{
+                    fontSize: 14,
+                    transform: stationOpen
+                      ? 'rotate(180deg)'
+                      : 'rotate(0deg)',
+                    transition: 'transform 0.15s ease',
+                  }}
+                >
+                  ▾
+                </span>
+              </button>
+
+              {stationOpen && (
+                <div
+                  role="listbox"
+                  aria-label="Active station"
+                  style={{
+                    position: 'absolute',
+                    top: 'calc(100% + 6px)',
+                    left: 0,
+                    right: 0,
+                    zIndex: 1000,
+                    padding: 4,
+                    background: '#071824',
+                    border: '1px solid #0b6475',
+                    borderRadius: 8,
+                    boxShadow:
+                      '0 12px 28px rgba(0, 0, 0, 0.45)',
+                  }}
+                >
+                  {stations.map((station) => (
+                    <button
+                      key={station}
+                      type="button"
+                      role="option"
+                      aria-selected={
+                        p.station === station
+                      }
+                      onClick={() => {
+                        p.onStationChange(station);
+                        setStationOpen(false);
+                      }}
+                      style={{
+                        width: '100%',
+                        padding: '10px 12px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        border: 'none',
+                        borderRadius: 6,
+                        background:
+                          p.station === station
+                            ? 'rgba(0, 217, 255, 0.12)'
+                            : 'transparent',
+                        color:
+                          p.station === station
+                            ? '#00d9ff'
+                            : '#d7e7ee',
+                        fontFamily: 'inherit',
+                        fontSize: 15,
+                        fontWeight:
+                          p.station === station
+                            ? 600
+                            : 500,
+                        cursor: 'pointer',
+                        textAlign: 'left',
+                      }}
+                    >
+                      <span>{station}</span>
+                      {p.station === station && (
+                        <span>✓</span>
+                      )}
+                    </button>
+                  ))}
+                </div>
               )}
-            </select>
+            </div>
           </div>
         </div>
 
