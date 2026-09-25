@@ -10,6 +10,7 @@ import Logistics from './components/Logistics';
 import Equipment from './components/Equipment';
 import Predictions from './components/Predictions';
 import Simulation from './components/Simulation';
+import Decision from './components/Decision';
 import Alerts from './components/Alerts';
 import Maintenance from './components/Maintenance';
 import Reports from './components/Reports';
@@ -27,6 +28,7 @@ export type Screen =
   | 'logistics'
   | 'predictions'
   | 'simulation'
+  | 'decision'
   | 'scenariocmp'
   | 'alerts'
   | 'maintenance'
@@ -101,6 +103,9 @@ export default function App() {
 
       case 'simulation':
         return <Simulation station={station} />;
+
+      case 'decision':
+        return <Decision station={station} />;
 
       case 'scenariocmp':
         return <ScenarioComparison />;
