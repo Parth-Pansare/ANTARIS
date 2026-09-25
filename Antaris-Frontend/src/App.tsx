@@ -108,7 +108,7 @@ export default function App() {
         return <Decision station={station} />;
 
       case 'scenariocmp':
-        return <ScenarioComparison />;
+  return <ScenarioComparison station={station} />;
 
       case 'alerts':
         return <Alerts station={station} />;

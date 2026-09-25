@@ -1,309 +1,1752 @@
-import { RadarChart, Radar, PolarGrid, PolarAngleAxis, ResponsiveContainer, Tooltip, BarChart, Bar, XAxis, YAxis, CartesianGrid, Legend } from "recharts";
+import { useCallback, useEffect, useState } from "react";
 
-const scenarios = {
-  baseline: {
-    label: "BASELINE",
-    sub: "Current operational state",
-    color: "#00c8e8",
-    safe: true,
-    energy: 185,
-    fuel: 7200,
-    fuelPct: 72,
-    battery: 82,
-    equipment: 94,
-    risk: "LOW",
-    riskScore: 12,
-    inventory: 74,
-    stationHealth: 92,
-    alerts: 3,
-    heatingLoad: 68,
-    genLoad: 80,
-    temp: -25,
-  },
-  scenarioA: {
-    label: "SCENARIO A",
-    sub: "Temperature drop to -35°C",
-    color: "#f59e0b",
-    safe: false,
-    energy: 228,
-    fuel: 6100,
-    fuelPct: 61,
-    battery: 67,
-    equipment: 88,
-    risk: "HIGH",
-    riskScore: 68,
-    inventory: 55,
-    stationHealth: 78,
-    alerts: 7,
-    heatingLoad: 98,
-    genLoad: 95,
-    temp: -35,
-  },
-  scenarioB: {
-    label: "SCENARIO B",
-    sub: "G-02 failure + cold snap",
-    color: "#ef4444",
-    safe: false,
-    energy: 248,
-    fuel: 5400,
-    fuelPct: 54,
-    battery: 51,
-    equipment: 71,
-    risk: "CRITICAL",
-    riskScore: 88,
-    inventory: 48,
-    stationHealth: 62,
-    alerts: 12,
-    heatingLoad: 100,
-    genLoad: 100,
-    temp: -35,
-  },
-};
+type Station = "MAITRI" | "BHARATI";
 
-const metrics = ["stationHealth", "battery", "fuelPct", "equipment", "inventory"] as const;
-const metricLabels: Record<string, string> = {
-  stationHealth: "Station Health",
-  battery: "Battery",
-  fuelPct: "Fuel Level",
-  equipment: "Equipment",
-  inventory: "Inventory",
-};
+interface DashboardData {
+  stationCode?: string;
+  stationName?: string;
+  stationStatus?: string;
+  environment?: {
+    temperature?: number;
+    humidity?: number;
+    windSpeed?: number;
+  };
+  energy?: {
+    totalGeneration?: number;
+    totalConsumption?: number;
+    powerBalance?: number;
+    batteryPercentage?: number;
+    generatorLoad?: number;
+  };
+  fuel?: {
+    fuelLevel?: number;
+    fuelPercentage?: number;
+    consumptionRate?: number;
+    estimatedRuntimeHours?: number;
+  };
+  activeAlerts?: number;
+  totalEquipment?: number;
+  operationalEquipment?: number;
+  warningEquipment?: number;
+}
 
-const radarData = [
-  { metric: "Health", baseline: 92, scenarioA: 78, scenarioB: 62 },
-  { metric: "Energy", baseline: 88, scenarioA: 55, scenarioB: 42 },
-  { metric: "Fuel", baseline: 72, scenarioA: 61, scenarioB: 54 },
-  { metric: "Battery", baseline: 82, scenarioA: 67, scenarioB: 51 },
-  { metric: "Equipment", baseline: 94, scenarioA: 88, scenarioB: 71 },
-  { metric: "Inventory", baseline: 74, scenarioA: 55, scenarioB: 48 },
-];
+interface PredictionData {
+  [key: string]: unknown;
+}
 
-const timelineData = Array.from({ length: 72 }, (_, h) => ({
-  h: `${h}h`,
-  baseline: 7200 - h * 200 / 24,
-  scenarioA: 7200 - h * 260 / 24,
-  scenarioB: 7200 - h * 300 / 24,
-}));
+interface SimulationState {
+  [key: string]: unknown;
+}
 
-const downsampledTimeline = timelineData.filter((_, i) => i % 6 === 0);
+interface SimulationImpact {
+  [key: string]: unknown;
+}
 
-const keys: Array<keyof typeof scenarios> = ["baseline", "scenarioA", "scenarioB"];
+interface SimulationResult {
+  station: string;
+  scenarioName: string;
+  horizonHours: number;
+  baselineState: SimulationState;
+  simulatedState: SimulationState;
+  impact: SimulationImpact;
+}
 
-export default function ScenarioComparison() {
-  const safest = keys.reduce((a, b) => scenarios[a].riskScore < scenarios[b].riskScore ? a : b);
+interface ScenarioEntity {
+  id: number;
+  scenarioName?: string;
+  station?: {
+    code?: string;
+  };
+}
 
+interface DecisionResult {
+  decisionCode?: string;
+  decision?: string;
+  riskScore?: number;
+  riskLevel?: string;
+  primaryRisk?: string;
+  reason?: string;
+}
+
+interface Recommendation {
+  actionCode?: string;
+  action?: string;
+  priority?: string;
+  reason?: string;
+}
+
+interface RecommendationResult {
+  decisionCode?: string;
+  decision?: string;
+  riskLevel?: string;
+  riskScore?: number;
+  primaryRisk?: string;
+  recommendations?: Recommendation[];
+}
+
+interface ExplanationResult {
+  summary?: string;
+  detailedExplanation?: string;
+  operationalImplication?: string;
+  impactFactors?: string[];
+  recommendationCount?: number;
+}
+
+interface FlowState {
+  monitor: boolean;
+  predict: boolean;
+  simulate: boolean;
+  decide: boolean;
+}
+
+function numberValue(
+  source: Record<string, unknown> | null | undefined,
+  keys: string[],
+  fallback = 0,
+): number {
+  if (!source) return fallback;
+
+  for (const key of keys) {
+    const value = source[key];
+
+    if (typeof value === "number" && Number.isFinite(value)) {
+      return value;
+    }
+  }
+
+  return fallback;
+}
+
+function stringValue(
+  source: Record<string, unknown> | null | undefined,
+  keys: string[],
+  fallback = "—",
+): string {
+  if (!source) return fallback;
+
+  for (const key of keys) {
+    const value = source[key];
+
+    if (typeof value === "string" && value.trim()) {
+      return value;
+    }
+  }
+
+  return fallback;
+}
+
+function formatNumber(value: number, decimals = 1) {
+  return value.toLocaleString("en-IN", {
+    minimumFractionDigits: decimals,
+    maximumFractionDigits: decimals,
+  });
+}
+
+function formatLabel(value: string) {
+  return value
+    .replace(/([a-z])([A-Z])/g, "$1 $2")
+    .replace(/_/g, " ")
+    .replace(/-/g, " ")
+    .replace(/\b\w/g, (char) => char.toUpperCase());
+}
+
+function riskColor(level?: string) {
+  switch ((level ?? "").toUpperCase()) {
+    case "CRITICAL":
+      return "#ef4444";
+    case "HIGH":
+      return "#f97316";
+    case "ELEVATED":
+      return "#f59e0b";
+    case "LOW":
+      return "#10b981";
+    default:
+      return "#64748b";
+  }
+}
+
+function StatusBadge({
+  state,
+  label,
+}: {
+  state: boolean;
+  label: string;
+}) {
   return (
-    <div style={{ padding: "20px", display: "flex", flexDirection: "column", gap: 16 }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-        <div>
-          <h1 className="font-display" style={{ fontSize: 24, fontWeight: 700, letterSpacing: "0.06em", color: "#e2e8f0" }}>
-            SCENARIO COMPARISON
-          </h1>
-          <p style={{ fontSize: 13, color: "#64748b" }}>Baseline vs Scenario A vs Scenario B · AI risk assessment · Safest path identification</p>
-        </div>
-        <div style={{ display: "flex", gap: 8 }}>
-          <button className="btn-secondary" style={{ fontSize: 12 }}>Apply Safest Scenario</button>
-          <button className="btn-ghost" style={{ fontSize: 12 }}>Export Report</button>
-        </div>
+    <div
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: 7,
+        padding: "5px 9px",
+        borderRadius: 4,
+        border: state
+          ? "1px solid rgba(16,185,129,0.25)"
+          : "1px solid rgba(148,163,184,0.12)",
+        background: state
+          ? "rgba(16,185,129,0.06)"
+          : "rgba(148,163,184,0.03)",
+      }}
+    >
+      <span
+        style={{
+          width: 6,
+          height: 6,
+          borderRadius: "50%",
+          background: state ? "#10b981" : "#475569",
+          boxShadow: state ? "0 0 7px #10b981" : "none",
+        }}
+      />
+      <span
+        className="font-mono"
+        style={{
+          fontSize: 8,
+          color: state ? "#10b981" : "#475569",
+          letterSpacing: "0.08em",
+        }}
+      >
+        {label}
+      </span>
+    </div>
+  );
+}
+
+function FlowStep({
+  number,
+  title,
+  subtitle,
+  active,
+  complete,
+}: {
+  number: string;
+  title: string;
+  subtitle: string;
+  active: boolean;
+  complete: boolean;
+}) {
+  return (
+    <div
+      style={{
+        flex: 1,
+        minWidth: 150,
+        padding: 14,
+        borderRadius: 7,
+        border: active
+          ? "1px solid rgba(0,200,232,0.35)"
+          : complete
+            ? "1px solid rgba(16,185,129,0.25)"
+            : "1px solid rgba(148,163,184,0.10)",
+        background: active
+          ? "rgba(0,200,232,0.06)"
+          : complete
+            ? "rgba(16,185,129,0.04)"
+            : "rgba(148,163,184,0.025)",
+        position: "relative",
+        overflow: "hidden",
+      }}
+    >
+      {active && (
+        <div
+          style={{
+            position: "absolute",
+            top: 0,
+            left: 0,
+            right: 0,
+            height: 2,
+            background: "#00c8e8",
+          }}
+        />
+      )}
+
+      <div
+        className="font-mono"
+        style={{
+          fontSize: 8,
+          color: active
+            ? "#00c8e8"
+            : complete
+              ? "#10b981"
+              : "#475569",
+          letterSpacing: "0.12em",
+          marginBottom: 5,
+        }}
+      >
+        STEP {number}
       </div>
 
-      {/* Scenario header cards */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12 }}>
-        {keys.map(k => {
-          const s = scenarios[k];
-          const isSafest = k === safest;
-          return (
-            <div key={k} style={{
-              borderRadius: 8, padding: 20,
-              background: `${s.color}06`,
-              border: `1px solid ${s.color}${isSafest ? "40" : "20"}`,
-              position: "relative", overflow: "hidden",
-            }}>
-              <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 2, background: `linear-gradient(90deg, transparent, ${s.color}, transparent)` }}/>
-              {isSafest && (
-                <div style={{ position: "absolute", top: 10, right: 10, padding: "2px 8px", background: "rgba(16,185,129,0.15)", border: "1px solid rgba(16,185,129,0.3)", borderRadius: 3, fontSize: 8, fontFamily: "JetBrains Mono", color: "#10b981", letterSpacing: "0.1em" }}>
-                  ★ SAFEST
-                </div>
-              )}
-              <div className="font-mono" style={{ fontSize: 10, color: s.color, letterSpacing: "0.12em", marginBottom: 4 }}>{s.label}</div>
-              <div style={{ fontSize: 12, color: "#64748b", marginBottom: 14 }}>{s.sub}</div>
-
-              {/* Risk score ring */}
-              <div style={{ display: "flex", gap: 14, alignItems: "center", marginBottom: 14 }}>
-                <RiskGauge score={s.riskScore} color={s.color}/>
-                <div>
-                  <div className="section-label" style={{ marginBottom: 2 }}>Risk Score</div>
-                  <div className="font-display" style={{ fontSize: 28, fontWeight: 700, color: s.color }}>{s.riskScore}</div>
-                  <div className="font-mono" style={{ fontSize: 9, color: s.color, letterSpacing: "0.1em" }}>{s.risk} RISK</div>
-                </div>
-              </div>
-
-              {/* Key metrics */}
-              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                {[
-                  { label: "Energy Load", value: `${s.energy} kW`, warn: s.energy > 200 },
-                  { label: "Fuel Level", value: `${s.fuelPct}% (${(s.fuel / 1000).toFixed(1)}k L)`, warn: s.fuelPct < 65 },
-                  { label: "Battery SOC", value: `${s.battery}%`, warn: s.battery < 70 },
-                  { label: "Station Health", value: `${s.stationHealth}%`, warn: s.stationHealth < 80 },
-                  { label: "Active Alerts", value: `${s.alerts}`, warn: s.alerts > 5 },
-                ].map(row => (
-                  <div key={row.label} style={{ display: "flex", justifyContent: "space-between", padding: "4px 0", borderBottom: "1px solid rgba(148,163,184,0.06)" }}>
-                    <span className="section-label">{row.label}</span>
-                    <span className="font-mono" style={{ fontSize: 11, color: row.warn ? "#ef4444" : "#e2e8f0", fontWeight: 500 }}>{row.value}</span>
-                  </div>
-                ))}
-              </div>
-
-              <div style={{ marginTop: 12 }}>
-                <button className="btn-ghost" style={{ width: "100%", fontSize: 11, padding: "7px" }}>Apply Scenario</button>
-              </div>
-            </div>
-          );
-        })}
+      <div
+        className="font-display"
+        style={{
+          fontSize: 13,
+          fontWeight: 700,
+          color: active || complete ? "#e2e8f0" : "#64748b",
+        }}
+      >
+        {title}
       </div>
 
-      {/* Charts */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-        {/* Radar */}
-        <div className="chart-container">
-          <div style={{ marginBottom: 10 }}>
-            <div style={{ fontSize: 13, fontWeight: 600, color: "#94a3b8" }}>System Resilience Radar</div>
-            <div className="section-label" style={{ marginTop: 1 }}>Higher = better across all dimensions</div>
-          </div>
-          <ResponsiveContainer width="100%" height={200}>
-            <RadarChart data={radarData}>
-              <PolarGrid stroke="rgba(0,200,232,0.08)"/>
-              <PolarAngleAxis dataKey="metric" tick={{ fill: "#64748b", fontSize: 10, fontFamily: "JetBrains Mono" }}/>
-              <Tooltip contentStyle={{ background: "#0d1b2e", border: "1px solid rgba(0,200,232,0.2)", borderRadius: 4, fontSize: 11 }}/>
-              <Radar dataKey="baseline" stroke={scenarios.baseline.color} fill={scenarios.baseline.color} fillOpacity={0.12} name="Baseline"/>
-              <Radar dataKey="scenarioA" stroke={scenarios.scenarioA.color} fill={scenarios.scenarioA.color} fillOpacity={0.1} name="Scenario A"/>
-              <Radar dataKey="scenarioB" stroke={scenarios.scenarioB.color} fill={scenarios.scenarioB.color} fillOpacity={0.08} name="Scenario B"/>
-              <Legend formatter={v => <span style={{ fontFamily: "JetBrains Mono", fontSize: 9, color: "#64748b" }}>{v}</span>}/>
-            </RadarChart>
-          </ResponsiveContainer>
-        </div>
-
-        {/* Fuel depletion timeline */}
-        <div className="chart-container">
-          <div style={{ marginBottom: 10 }}>
-            <div style={{ fontSize: 13, fontWeight: 600, color: "#94a3b8" }}>Fuel Depletion — 72h Projection</div>
-            <div className="section-label" style={{ marginTop: 1 }}>Scenario impact on fuel reserves</div>
-          </div>
-          <ResponsiveContainer width="100%" height={200}>
-            <BarChart data={downsampledTimeline}>
-              <CartesianGrid strokeDasharray="3 3" stroke="rgba(0,200,232,0.05)"/>
-              <XAxis dataKey="h" tick={{ fontSize: 8, fill: "#475569", fontFamily: "JetBrains Mono" }}/>
-              <YAxis tick={{ fontSize: 8, fill: "#475569", fontFamily: "JetBrains Mono" }} width={38}/>
-              <Tooltip contentStyle={{ background: "#0d1b2e", border: "1px solid rgba(0,200,232,0.2)", borderRadius: 4, fontSize: 11 }}/>
-              <Bar dataKey="baseline" fill={scenarios.baseline.color} opacity={0.7} name="Baseline" radius={[1, 1, 0, 0]}/>
-              <Bar dataKey="scenarioA" fill={scenarios.scenarioA.color} opacity={0.7} name="Scenario A" radius={[1, 1, 0, 0]}/>
-              <Bar dataKey="scenarioB" fill={scenarios.scenarioB.color} opacity={0.7} name="Scenario B" radius={[1, 1, 0, 0]}/>
-              <Legend formatter={v => <span style={{ fontFamily: "JetBrains Mono", fontSize: 9, color: "#64748b" }}>{v}</span>}/>
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
-      </div>
-
-      {/* Metric comparison table */}
-      <div className="glass" style={{ borderRadius: 8, overflow: "hidden" }}>
-        <div style={{ padding: "14px 20px", borderBottom: "1px solid rgba(0,200,232,0.1)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          <div className="section-label">Detailed Metric Comparison</div>
-          <div style={{ display: "flex", gap: 16 }}>
-            {keys.map(k => (
-              <div key={k} style={{ display: "flex", alignItems: "center", gap: 5 }}>
-                <span style={{ width: 8, height: 8, borderRadius: "50%", background: scenarios[k].color, display: "inline-block" }}/>
-                <span className="font-mono" style={{ fontSize: 9, color: "#64748b" }}>{scenarios[k].label}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-        <table className="data-table" style={{ width: "100%", borderCollapse: "collapse" }}>
-          <thead>
-            <tr>
-              <th style={{ textAlign: "left" }}>Metric</th>
-              <th style={{ textAlign: "center", color: scenarios.baseline.color }}>BASELINE</th>
-              <th style={{ textAlign: "center", color: scenarios.scenarioA.color }}>SCENARIO A</th>
-              <th style={{ textAlign: "center", color: scenarios.scenarioB.color }}>SCENARIO B</th>
-              <th style={{ textAlign: "center" }}>Best Option</th>
-            </tr>
-          </thead>
-          <tbody>
-            {[
-              { label: "Energy Load (kW)", values: [185, 228, 248], lowerBetter: true },
-              { label: "Fuel Level (%)", values: [72, 61, 54], lowerBetter: false },
-              { label: "Battery SOC (%)", values: [82, 67, 51], lowerBetter: false },
-              { label: "Station Health (%)", values: [92, 78, 62], lowerBetter: false },
-              { label: "Equipment Health (%)", values: [94, 88, 71], lowerBetter: false },
-              { label: "Active Alerts", values: [3, 7, 12], lowerBetter: true },
-              { label: "Risk Score", values: [12, 68, 88], lowerBetter: true },
-            ].map(row => {
-              const bestVal = row.lowerBetter ? Math.min(...row.values) : Math.max(...row.values);
-              const bestIdx = row.values.indexOf(bestVal);
-              const bestKey = keys[bestIdx];
-              return (
-                <tr key={row.label}>
-                  <td style={{ color: "#e2e8f0", fontWeight: 500 }}>{row.label}</td>
-                  {row.values.map((v, i) => {
-                    const isBest = i === bestIdx;
-                    const isWorst = v === (row.lowerBetter ? Math.max(...row.values) : Math.min(...row.values));
-                    return (
-                      <td key={i} style={{ textAlign: "center" }}>
-                        <span className="font-mono" style={{ fontSize: 12, color: isBest ? "#10b981" : isWorst ? "#ef4444" : "#94a3b8", fontWeight: isBest ? 700 : 400 }}>
-                          {v}
-                          {isBest && " ★"}
-                        </span>
-                      </td>
-                    );
-                  })}
-                  <td style={{ textAlign: "center" }}>
-                    <span style={{ padding: "2px 8px", background: `${scenarios[bestKey].color}12`, border: `1px solid ${scenarios[bestKey].color}28`, borderRadius: 3, fontSize: 9, fontFamily: "JetBrains Mono", color: scenarios[bestKey].color, letterSpacing: "0.08em" }}>
-                      {scenarios[bestKey].label}
-                    </span>
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
-
-      {/* AI Recommendation */}
-      <div style={{ padding: "16px 20px", background: "rgba(0,200,232,0.04)", border: "1px solid rgba(0,200,232,0.2)", borderRadius: 8, position: "relative", overflow: "hidden" }}>
-        <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 2, background: "linear-gradient(90deg, transparent, #00c8e8, transparent)" }}/>
-        <div className="font-mono" style={{ fontSize: 9, color: "#00c8e8", letterSpacing: "0.15em", marginBottom: 10 }}>AI RECOMMENDATION</div>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12 }}>
-          <div>
-            <div className="font-display" style={{ fontSize: 13, fontWeight: 700, color: "#10b981", marginBottom: 4 }}>✓ Baseline is safest</div>
-            <p style={{ fontSize: 11, color: "#94a3b8" }}>Maintain current operations. Risk score of 12 is well within acceptable operational parameters.</p>
-          </div>
-          <div>
-            <div className="font-display" style={{ fontSize: 13, fontWeight: 700, color: "#f59e0b", marginBottom: 4 }}>⚠ If Scenario A occurs</div>
-            <p style={{ fontSize: 11, color: "#94a3b8" }}>Increase fuel reserve by 18%, pre-charge battery to 95%, and pre-warm heating systems 6h before temperature drop.</p>
-          </div>
-          <div>
-            <div className="font-display" style={{ fontSize: 13, fontWeight: 700, color: "#ef4444", marginBottom: 4 }}>✕ Scenario B: High risk</div>
-            <p style={{ fontSize: 11, color: "#94a3b8" }}>G-02 failure during extreme cold creates cascading risk. Emergency resupply required and load shedding of 20% mandatory.</p>
-          </div>
-        </div>
+      <div
+        style={{
+          marginTop: 4,
+          fontSize: 10,
+          color: "#64748b",
+        }}
+      >
+        {subtitle}
       </div>
     </div>
   );
 }
 
-function RiskGauge({ score, color }: { score: number; color: string }) {
-  const size = 60;
-  const r = 22;
-  const circ = Math.PI * r; // half circle
-  const offset = circ * (1 - score / 100);
+function Metric({
+  label,
+  value,
+  unit,
+}: {
+  label: string;
+  value: string;
+  unit?: string;
+}) {
   return (
-    <svg width={size} height={size / 2 + 8}>
-      <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="rgba(148,163,184,0.08)" strokeWidth="6" strokeDasharray={circ} strokeDashoffset={0} transform={`rotate(-180 ${size / 2} ${size / 2})`}/>
-      <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke={color} strokeWidth="6"
-        strokeDasharray={circ} strokeDashoffset={offset}
-        transform={`rotate(-180 ${size / 2} ${size / 2})`}
-        strokeLinecap="round"
-        style={{ filter: `drop-shadow(0 0 4px ${color})` }}
-      />
-    </svg>
+    <div
+      style={{
+        padding: 12,
+        borderRadius: 6,
+        background: "rgba(148,163,184,0.025)",
+        border: "1px solid rgba(148,163,184,0.08)",
+      }}
+    >
+      <div className="section-label" style={{ marginBottom: 5 }}>
+        {label}
+      </div>
+
+      <div
+        className="font-display"
+        style={{
+          fontSize: 18,
+          fontWeight: 700,
+          color: "#e2e8f0",
+        }}
+      >
+        {value}
+        {unit && (
+          <span
+            className="font-mono"
+            style={{
+              fontSize: 9,
+              color: "#64748b",
+              marginLeft: 4,
+            }}
+          >
+            {unit}
+          </span>
+        )}
+      </div>
+    </div>
+  );
+}
+
+export default function ScenarioComparison({
+  station,
+}: {
+  station: Station;
+}) {
+  const [dashboard, setDashboard] = useState<DashboardData | null>(null);
+  const [prediction, setPrediction] = useState<PredictionData | null>(null);
+  const [simulation, setSimulation] =
+    useState<SimulationResult | null>(null);
+  const [decision, setDecision] =
+    useState<DecisionResult | null>(null);
+  const [recommendations, setRecommendations] =
+    useState<RecommendationResult | null>(null);
+  const [explanation, setExplanation] =
+    useState<ExplanationResult | null>(null);
+
+  const [flow, setFlow] = useState<FlowState>({
+    monitor: false,
+    predict: false,
+    simulate: false,
+    decide: false,
+  });
+
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [scenarioId, setScenarioId] = useState<number | null>(null);
+
+  const loadMonitorAndPrediction = useCallback(async () => {
+    setError("");
+
+    try {
+      const dashboardResponse = await fetch(
+        `/api/dashboard/${station === "MAITRI" ? 1 : 2}`,
+      );
+
+      if (!dashboardResponse.ok) {
+        throw new Error(
+          `Monitor API failed (${dashboardResponse.status})`,
+        );
+      }
+
+      const dashboardData =
+        (await dashboardResponse.json()) as DashboardData;
+
+      setDashboard(dashboardData);
+      setFlow((current) => ({
+        ...current,
+        monitor: true,
+      }));
+
+      const simulatorResponse = await fetch(
+        `/api/simulator/station/${station}`,
+        {
+          method: "POST",
+        },
+      );
+
+      if (!simulatorResponse.ok) {
+        throw new Error(
+          `Unable to activate ${station} prediction context (${simulatorResponse.status})`,
+        );
+      }
+
+      const predictionResponse = await fetch(
+        "/api/predictions/energy/current?horizonHours=24",
+        {
+          method: "POST",
+        },
+      );
+
+      if (!predictionResponse.ok) {
+        const message = await predictionResponse.text();
+
+        throw new Error(
+          `Prediction API failed (${predictionResponse.status})${
+            message ? `: ${message}` : ""
+          }`,
+        );
+      }
+
+      const predictionData =
+        (await predictionResponse.json()) as PredictionData;
+
+      setPrediction(predictionData);
+
+      setFlow((current) => ({
+        ...current,
+        predict: true,
+      }));
+    } catch (err) {
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Unable to load monitor and prediction data.",
+      );
+    }
+  }, [station]);
+
+  useEffect(() => {
+    setDashboard(null);
+    setPrediction(null);
+    setSimulation(null);
+    setDecision(null);
+    setRecommendations(null);
+    setExplanation(null);
+    setScenarioId(null);
+
+    setFlow({
+      monitor: false,
+      predict: false,
+      simulate: false,
+      decide: false,
+    });
+
+    void loadMonitorAndPrediction();
+  }, [station, loadMonitorAndPrediction]);
+
+  const runEndToEnd = async () => {
+    if (loading) return;
+
+    setLoading(true);
+    setError("");
+    setSimulation(null);
+    setDecision(null);
+    setRecommendations(null);
+    setExplanation(null);
+    setScenarioId(null);
+
+    setFlow({
+      monitor: false,
+      predict: false,
+      simulate: false,
+      decide: false,
+    });
+
+    try {
+      /*
+       * STEP 1 — MONITOR
+       */
+      const dashboardResponse = await fetch(
+        `/api/dashboard/${station === "MAITRI" ? 1 : 2}`,
+      );
+
+      if (!dashboardResponse.ok) {
+        throw new Error(
+          `Monitor API failed (${dashboardResponse.status})`,
+        );
+      }
+
+      const dashboardData =
+        (await dashboardResponse.json()) as DashboardData;
+
+      setDashboard(dashboardData);
+
+      setFlow({
+        monitor: true,
+        predict: false,
+        simulate: false,
+        decide: false,
+      });
+
+      /*
+       * STEP 2 — PREDICT
+       */
+      const simulatorResponse = await fetch(
+        `/api/simulator/station/${station}`,
+        {
+          method: "POST",
+        },
+      );
+
+      if (!simulatorResponse.ok) {
+        throw new Error(
+          `Unable to activate ${station} prediction context (${simulatorResponse.status})`,
+        );
+      }
+
+      const predictionResponse = await fetch(
+        "/api/predictions/energy/current?horizonHours=24",
+        {
+          method: "POST",
+        },
+      );
+
+      if (!predictionResponse.ok) {
+        const message = await predictionResponse.text();
+
+        throw new Error(
+          `Prediction API failed (${predictionResponse.status})${
+            message ? `: ${message}` : ""
+          }`,
+        );
+      }
+
+      const predictionData =
+        (await predictionResponse.json()) as PredictionData;
+
+      setPrediction(predictionData);
+
+      setFlow({
+        monitor: true,
+        predict: true,
+        simulate: false,
+        decide: false,
+      });
+
+      /*
+       * STEP 3 — SIMULATE
+       *
+       * Use controlled, valid scenario changes.
+       * Wind is deliberately kept at 0 to stay inside
+       * the backend's -1.0 to +1.0 validation range.
+       */
+      const currentTemperature =
+        dashboardData.environment?.temperature ?? -25;
+
+      const currentBattery =
+        dashboardData.energy?.batteryPercentage ?? 70;
+
+      const currentFuel =
+        dashboardData.fuel?.fuelPercentage ?? 70;
+
+      const scenarioRequest = {
+        station,
+        scenarioName: `${station} End-to-End Operational Scenario`,
+        description:
+          "ANTARIS end-to-end MONITOR to PREDICT to SIMULATE to DECIDE workflow.",
+        horizonHours: 72,
+        changes: {
+          temperatureChangeC: -5,
+          humidityChangePct: 0,
+          windResourceChange: 0,
+          generatorAvailabilityChangePct: 0,
+          fuelChangePct: -5,
+          batteryChangePct: -5,
+          consumptionChangePct: 5,
+        },
+      };
+
+      /*
+       * Keep values referenced so the live monitor data
+       * is visibly part of the workflow.
+       */
+      void currentTemperature;
+      void currentBattery;
+      void currentFuel;
+
+      const createResponse = await fetch(
+        "/api/simulation/scenarios",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(scenarioRequest),
+        },
+      );
+
+      if (!createResponse.ok) {
+        const message = await createResponse.text();
+
+        throw new Error(
+          `Scenario creation failed (${createResponse.status})${
+            message ? `: ${message}` : ""
+          }`,
+        );
+      }
+
+      const scenario =
+        (await createResponse.json()) as ScenarioEntity;
+
+      if (!scenario.id) {
+        throw new Error(
+          "Scenario was created without an ID.",
+        );
+      }
+
+      setScenarioId(scenario.id);
+
+      const runResponse = await fetch(
+        `/api/simulation/scenarios/${scenario.id}/run`,
+        {
+          method: "POST",
+        },
+      );
+
+      if (!runResponse.ok) {
+        const message = await runResponse.text();
+
+        throw new Error(
+          `Simulation execution failed (${runResponse.status})${
+            message ? `: ${message}` : ""
+          }`,
+        );
+      }
+
+      const simulationResult =
+        (await runResponse.json()) as SimulationResult;
+
+      if (!simulationResult.impact) {
+        throw new Error(
+          "Simulation completed without an impact result.",
+        );
+      }
+
+      setSimulation(simulationResult);
+
+      setFlow({
+        monitor: true,
+        predict: true,
+        simulate: true,
+        decide: false,
+      });
+
+      /*
+       * STEP 4 — DECIDE
+       */
+      const impactBody = JSON.stringify(
+        simulationResult.impact,
+      );
+
+      const decisionResponse = await fetch(
+        "/api/simulation/decision",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: impactBody,
+        },
+      );
+
+      if (!decisionResponse.ok) {
+        const message = await decisionResponse.text();
+
+        throw new Error(
+          `Decision API failed (${decisionResponse.status})${
+            message ? `: ${message}` : ""
+          }`,
+        );
+      }
+
+      const decisionData =
+        (await decisionResponse.json()) as DecisionResult;
+
+      setDecision(decisionData);
+
+      const recommendationResponse = await fetch(
+        "/api/simulation/recommendations",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: impactBody,
+        },
+      );
+
+      if (!recommendationResponse.ok) {
+        const message =
+          await recommendationResponse.text();
+
+        throw new Error(
+          `Recommendation API failed (${recommendationResponse.status})${
+            message ? `: ${message}` : ""
+          }`,
+        );
+      }
+
+      const recommendationData =
+        (await recommendationResponse.json()) as RecommendationResult;
+
+      setRecommendations(recommendationData);
+
+      const explanationResponse = await fetch(
+        "/api/simulation/explanation",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: impactBody,
+        },
+      );
+
+      if (!explanationResponse.ok) {
+        const message =
+          await explanationResponse.text();
+
+        throw new Error(
+          `Explanation API failed (${explanationResponse.status})${
+            message ? `: ${message}` : ""
+          }`,
+        );
+      }
+
+      const explanationData =
+        (await explanationResponse.json()) as ExplanationResult;
+
+      setExplanation(explanationData);
+
+      setFlow({
+        monitor: true,
+        predict: true,
+        simulate: true,
+        decide: true,
+      });
+    } catch (err) {
+      console.error(
+        "ANTARIS end-to-end workflow error:",
+        err,
+      );
+
+      setError(
+        err instanceof Error
+          ? err.message
+          : "End-to-end workflow failed.",
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const baseline = simulation?.baselineState;
+  const simulated = simulation?.simulatedState;
+
+  const baselineFuel = numberValue(
+    baseline,
+    ["fuelLevelL", "fuelLevel", "fuelRemaining", "fuelL"],
+  );
+
+  const simulatedFuel = numberValue(
+    simulated,
+    ["fuelLevelL", "fuelLevel", "fuelRemaining", "fuelL"],
+  );
+
+  const baselineBattery = numberValue(
+    baseline,
+    [
+      "batteryPercentage",
+      "batteryLevel",
+      "batterySoc",
+      "batterySOC",
+    ],
+  );
+
+  const simulatedBattery = numberValue(
+    simulated,
+    [
+      "batteryPercentage",
+      "batteryLevel",
+      "batterySoc",
+      "batterySOC",
+    ],
+  );
+
+  const baselineEnergy = numberValue(
+    baseline,
+    [
+      "totalConsumptionKw",
+      "consumptionKw",
+      "energyLoadKw",
+      "energy",
+    ],
+  );
+
+  const simulatedEnergy = numberValue(
+    simulated,
+    [
+      "totalConsumptionKw",
+      "consumptionKw",
+      "energyLoadKw",
+      "energy",
+    ],
+  );
+
+  const predictionValue = numberValue(
+    prediction,
+    [
+      "predictedValue",
+      "predictedEnergy",
+      "predictedGeneration",
+      "prediction",
+      "value",
+    ],
+    0,
+  );
+
+  const decisionRisk = decision?.riskLevel ?? "—";
+  const riskScore =
+    typeof decision?.riskScore === "number"
+      ? decision.riskScore
+      : null;
+
+  return (
+    <div
+      style={{
+        padding: 20,
+        display: "flex",
+        flexDirection: "column",
+        gap: 14,
+      }}
+    >
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "flex-start",
+          gap: 16,
+        }}
+      >
+        <div>
+          <div
+            className="font-mono"
+            style={{
+              fontSize: 9,
+              color: "#00c8e8",
+              letterSpacing: "0.15em",
+              marginBottom: 6,
+            }}
+          >
+            OPERATIONS / INTELLIGENCE PIPELINE
+          </div>
+
+          <h1
+            className="font-display"
+            style={{
+              margin: 0,
+              fontSize: 24,
+              fontWeight: 700,
+              letterSpacing: "0.06em",
+              color: "#e2e8f0",
+            }}
+          >
+            END-TO-END OPERATIONS
+          </h1>
+
+          <p
+            style={{
+              marginTop: 7,
+              fontSize: 13,
+              color: "#64748b",
+            }}
+          >
+            MONITOR → PREDICT → SIMULATE → DECIDE
+            {" · "}
+            Live backend integration
+          </p>
+        </div>
+
+        <div
+          style={{
+            textAlign: "right",
+          }}
+        >
+          <div className="section-label">
+            ACTIVE STATION
+          </div>
+
+          <div
+            className="font-display"
+            style={{
+              marginTop: 4,
+              fontSize: 16,
+              fontWeight: 700,
+              color: "#00c8e8",
+            }}
+          >
+            {station}
+          </div>
+
+          {scenarioId && (
+            <div
+              className="font-mono"
+              style={{
+                marginTop: 4,
+                fontSize: 8,
+                color: "#475569",
+              }}
+            >
+              SCENARIO #{scenarioId}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {error && (
+        <div
+          style={{
+            padding: "10px 12px",
+            borderRadius: 6,
+            border: "1px solid rgba(239,68,68,0.25)",
+            background: "rgba(239,68,68,0.06)",
+            color: "#fca5a5",
+            fontSize: 11,
+            fontFamily: "JetBrains Mono",
+          }}
+        >
+          WORKFLOW ERROR · {error}
+        </div>
+      )}
+
+      <div
+        style={{
+          display: "flex",
+          gap: 8,
+          flexWrap: "wrap",
+        }}
+      >
+        <FlowStep
+          number="01"
+          title="MONITOR"
+          subtitle="Live station telemetry"
+          active={!flow.monitor && !loading}
+          complete={flow.monitor}
+        />
+
+        <FlowStep
+          number="02"
+          title="PREDICT"
+          subtitle="ML energy forecast"
+          active={flow.monitor && !flow.predict && loading}
+          complete={flow.predict}
+        />
+
+        <FlowStep
+          number="03"
+          title="SIMULATE"
+          subtitle="72h what-if scenario"
+          active={flow.predict && !flow.simulate && loading}
+          complete={flow.simulate}
+        />
+
+        <FlowStep
+          number="04"
+          title="DECIDE"
+          subtitle="Risk + actions"
+          active={flow.simulate && !flow.decide && loading}
+          complete={flow.decide}
+        />
+      </div>
+
+      <div
+        className="glass"
+        style={{
+          borderRadius: 8,
+          padding: 14,
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          gap: 10,
+          flexWrap: "wrap",
+        }}
+      >
+        <div>
+          <div className="section-label">
+            PIPELINE STATUS
+          </div>
+
+          <div
+            className="font-mono"
+            style={{
+              marginTop: 5,
+              fontSize: 10,
+              color: flow.decide
+                ? "#10b981"
+                : loading
+                  ? "#00c8e8"
+                  : "#64748b",
+            }}
+          >
+            {flow.decide
+              ? "END-TO-END FLOW COMPLETE"
+              : loading
+                ? "PROCESSING BACKEND PIPELINE..."
+                : "READY FOR OPERATIONAL SIMULATION"}
+          </div>
+        </div>
+
+        <div
+          style={{
+            display: "flex",
+            gap: 7,
+          }}
+        >
+          <StatusBadge
+            state={flow.monitor}
+            label="MONITOR"
+          />
+          <StatusBadge
+            state={flow.predict}
+            label="PREDICT"
+          />
+          <StatusBadge
+            state={flow.simulate}
+            label="SIMULATE"
+          />
+          <StatusBadge
+            state={flow.decide}
+            label="DECIDE"
+          />
+        </div>
+
+        <button
+          className="btn-primary"
+          onClick={runEndToEnd}
+          disabled={loading}
+          style={{
+            minWidth: 190,
+            padding: "11px 15px",
+            fontSize: 11,
+            letterSpacing: "0.08em",
+          }}
+        >
+          {loading
+            ? "RUNNING PIPELINE..."
+            : "RUN END-TO-END FLOW"}
+        </button>
+      </div>
+
+      {dashboard && (
+        <div>
+          <div
+            className="font-mono"
+            style={{
+              fontSize: 9,
+              color: "#00c8e8",
+              letterSpacing: "0.13em",
+              marginBottom: 8,
+            }}
+          >
+            01 / MONITOR · LIVE STATION STATE
+          </div>
+
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns:
+                "repeat(6, minmax(0, 1fr))",
+              gap: 9,
+            }}
+          >
+            <Metric
+              label="TEMPERATURE"
+              value={formatNumber(
+                dashboard.environment?.temperature ?? 0,
+                1,
+              )}
+              unit="°C"
+            />
+
+            <Metric
+              label="POWER LOAD"
+              value={formatNumber(
+                dashboard.energy?.totalConsumption ?? 0,
+                1,
+              )}
+              unit="kW"
+            />
+
+            <Metric
+              label="BATTERY"
+              value={formatNumber(
+                dashboard.energy?.batteryPercentage ?? 0,
+                1,
+              )}
+              unit="%"
+            />
+
+            <Metric
+              label="FUEL"
+              value={formatNumber(
+                dashboard.fuel?.fuelLevel ?? 0,
+                0,
+              )}
+              unit="L"
+            />
+
+            <Metric
+              label="EQUIPMENT"
+              value={`${dashboard.operationalEquipment ?? 0}/${dashboard.totalEquipment ?? 0}`}
+            />
+
+            <Metric
+              label="ACTIVE ALERTS"
+              value={String(
+                dashboard.activeAlerts ?? 0,
+              )}
+            />
+          </div>
+        </div>
+      )}
+
+      {prediction && (
+        <div
+          className="glass"
+          style={{
+            borderRadius: 8,
+            padding: 16,
+          }}
+        >
+          <div
+            className="font-mono"
+            style={{
+              fontSize: 9,
+              color: "#a78bfa",
+              letterSpacing: "0.13em",
+              marginBottom: 8,
+            }}
+          >
+            02 / PREDICT · ML SERVICE
+          </div>
+
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns:
+                "repeat(4, minmax(0, 1fr))",
+              gap: 10,
+            }}
+          >
+            <Metric
+              label="CURRENT POWER LOAD"
+              value={formatNumber(
+                dashboard?.energy?.totalConsumption ?? 0,
+                1,
+              )}
+              unit="kW"
+            />
+
+            <Metric
+              label="PREDICTED ENERGY"
+              value={
+                predictionValue
+                  ? formatNumber(predictionValue, 2)
+                  : "AVAILABLE"
+              }
+              unit={predictionValue ? "kW" : undefined}
+            />
+
+            <Metric
+              label="MODEL"
+              value={stringValue(
+                prediction,
+                ["modelVersion", "model", "version"],
+                "ML MODEL",
+              )}
+            />
+
+            <Metric
+              label="HORIZON"
+              value="24"
+              unit="h"
+            />
+          </div>
+        </div>
+      )}
+
+      {simulation && (
+        <div>
+          <div
+            className="font-mono"
+            style={{
+              fontSize: 9,
+              color: "#f59e0b",
+              letterSpacing: "0.13em",
+              marginBottom: 8,
+            }}
+          >
+            03 / SIMULATE · BACKEND WHAT-IF ENGINE
+          </div>
+
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "1fr 1fr",
+              gap: 12,
+            }}
+          >
+            <div
+              className="glass"
+              style={{
+                borderRadius: 8,
+                padding: 16,
+              }}
+            >
+              <div className="section-label">
+                BASELINE STATE
+              </div>
+
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns:
+                    "repeat(3, 1fr)",
+                  gap: 8,
+                  marginTop: 12,
+                }}
+              >
+                <Metric
+                  label="ENERGY"
+                  value={formatNumber(
+                    baselineEnergy,
+                    1,
+                  )}
+                  unit="kW"
+                />
+
+                <Metric
+                  label="FUEL"
+                  value={formatNumber(
+                    baselineFuel,
+                    0,
+                  )}
+                  unit="L"
+                />
+
+                <Metric
+                  label="BATTERY"
+                  value={formatNumber(
+                    baselineBattery,
+                    1,
+                  )}
+                  unit="%"
+                />
+              </div>
+            </div>
+
+            <div
+              className="glass"
+              style={{
+                borderRadius: 8,
+                padding: 16,
+              }}
+            >
+              <div className="section-label">
+                SIMULATED STATE
+              </div>
+
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns:
+                    "repeat(3, 1fr)",
+                  gap: 8,
+                  marginTop: 12,
+                }}
+              >
+                <Metric
+                  label="ENERGY"
+                  value={formatNumber(
+                    simulatedEnergy,
+                    1,
+                  )}
+                  unit="kW"
+                />
+
+                <Metric
+                  label="FUEL"
+                  value={formatNumber(
+                    simulatedFuel,
+                    0,
+                  )}
+                  unit="L"
+                />
+
+                <Metric
+                  label="BATTERY"
+                  value={formatNumber(
+                    simulatedBattery,
+                    1,
+                  )}
+                  unit="%"
+                />
+              </div>
+            </div>
+          </div>
+
+          <div
+            className="glass"
+            style={{
+              marginTop: 10,
+              borderRadius: 8,
+              padding: 14,
+            }}
+          >
+            <div className="section-label">
+              SIMULATION IMPACT
+            </div>
+
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns:
+                  "repeat(4, minmax(0, 1fr))",
+                gap: 8,
+                marginTop: 10,
+              }}
+            >
+              {Object.entries(simulation.impact)
+                .filter(
+                  ([, value]) =>
+                    value !== null &&
+                    value !== undefined &&
+                    typeof value !== "object",
+                )
+                .slice(0, 8)
+                .map(([key, value]) => (
+                  <div
+                    key={key}
+                    style={{
+                      padding: 9,
+                      borderRadius: 5,
+                      background:
+                        "rgba(148,163,184,0.025)",
+                    }}
+                  >
+                    <div
+                      className="font-mono"
+                      style={{
+                        fontSize: 8,
+                        color: "#475569",
+                      }}
+                    >
+                      {formatLabel(key)}
+                    </div>
+
+                    <div
+                      className="font-mono"
+                      style={{
+                        marginTop: 4,
+                        fontSize: 11,
+                        color: "#e2e8f0",
+                      }}
+                    >
+                      {typeof value === "number"
+                        ? formatNumber(value, 2)
+                        : String(value)}
+                    </div>
+                  </div>
+                ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {decision && (
+        <div>
+          <div
+            className="font-mono"
+            style={{
+              fontSize: 9,
+              color: riskColor(decision.riskLevel),
+              letterSpacing: "0.13em",
+              marginBottom: 8,
+            }}
+          >
+            04 / DECIDE · OPERATIONAL DECISION ENGINE
+          </div>
+
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "1fr 1fr",
+              gap: 12,
+            }}
+          >
+            <div
+              className="glass"
+              style={{
+                borderRadius: 8,
+                padding: 18,
+                border: `1px solid ${riskColor(decision.riskLevel)}30`,
+              }}
+            >
+              <div className="section-label">
+                DECISION
+              </div>
+
+              <div
+                className="font-display"
+                style={{
+                  marginTop: 8,
+                  fontSize: 20,
+                  fontWeight: 700,
+                  color: riskColor(
+                    decision.riskLevel,
+                  ),
+                }}
+              >
+                {decision.decision ?? "—"}
+              </div>
+
+              <div
+                className="font-mono"
+                style={{
+                  marginTop: 7,
+                  fontSize: 9,
+                  color: "#64748b",
+                }}
+              >
+                {decision.decisionCode ?? "—"}
+              </div>
+
+              <div
+                style={{
+                  display: "flex",
+                  gap: 18,
+                  marginTop: 16,
+                }}
+              >
+                <div>
+                  <div className="section-label">
+                    RISK
+                  </div>
+
+                  <div
+                    className="font-mono"
+                    style={{
+                      marginTop: 4,
+                      fontSize: 13,
+                      fontWeight: 700,
+                      color: riskColor(
+                        decision.riskLevel,
+                      ),
+                    }}
+                  >
+                    {decisionRisk}
+                  </div>
+                </div>
+
+                <div>
+                  <div className="section-label">
+                    SCORE
+                  </div>
+
+                  <div
+                    className="font-mono"
+                    style={{
+                      marginTop: 4,
+                      fontSize: 13,
+                      fontWeight: 700,
+                      color: "#e2e8f0",
+                    }}
+                  >
+                    {riskScore !== null
+                      ? formatNumber(riskScore, 2)
+                      : "—"}
+                  </div>
+                </div>
+
+                <div>
+                  <div className="section-label">
+                    PRIMARY RISK
+                  </div>
+
+                  <div
+                    className="font-mono"
+                    style={{
+                      marginTop: 4,
+                      fontSize: 13,
+                      fontWeight: 700,
+                      color: "#e2e8f0",
+                    }}
+                  >
+                    {decision.primaryRisk ??
+                      "—"}
+                  </div>
+                </div>
+              </div>
+
+              {decision.reason && (
+                <div
+                  style={{
+                    marginTop: 14,
+                    paddingTop: 12,
+                    borderTop:
+                      "1px solid rgba(148,163,184,0.08)",
+                    fontSize: 11,
+                    lineHeight: 1.6,
+                    color: "#94a3b8",
+                  }}
+                >
+                  {decision.reason}
+                </div>
+              )}
+            </div>
+
+            <div
+              className="glass"
+              style={{
+                borderRadius: 8,
+                padding: 18,
+              }}
+            >
+              <div className="section-label">
+                RECOMMENDED ACTIONS
+              </div>
+
+              <div
+                style={{
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: 8,
+                  marginTop: 10,
+                }}
+              >
+                {recommendations?.recommendations?.map(
+                  (item, index) => (
+                    <div
+                      key={
+                        item.actionCode ??
+                        index
+                      }
+                      style={{
+                        padding: 10,
+                        borderRadius: 5,
+                        border:
+                          "1px solid rgba(148,163,184,0.08)",
+                        background:
+                          "rgba(148,163,184,0.025)",
+                      }}
+                    >
+                      <div
+                        style={{
+                          display: "flex",
+                          justifyContent:
+                            "space-between",
+                          gap: 10,
+                        }}
+                      >
+                        <span
+                          style={{
+                            fontSize: 11,
+                            fontWeight: 600,
+                            color: "#e2e8f0",
+                          }}
+                        >
+                          {item.action ??
+                            "Operational action"}
+                        </span>
+
+                        <span
+                          className="font-mono"
+                          style={{
+                            fontSize: 8,
+                            color: riskColor(
+                              item.priority,
+                            ),
+                          }}
+                        >
+                          {item.priority ??
+                            "—"}
+                        </span>
+                      </div>
+
+                      {item.reason && (
+                        <div
+                          style={{
+                            marginTop: 4,
+                            fontSize: 9,
+                            lineHeight: 1.5,
+                            color: "#64748b",
+                          }}
+                        >
+                          {item.reason}
+                        </div>
+                      )}
+                    </div>
+                  ),
+                )}
+
+                {(!recommendations?.recommendations ||
+                  recommendations.recommendations
+                    .length === 0) && (
+                  <div
+                    style={{
+                      fontSize: 10,
+                      color: "#64748b",
+                    }}
+                  >
+                    No recommendations returned.
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {explanation && (
+        <div
+          className="glass"
+          style={{
+            borderRadius: 8,
+            padding: 18,
+            border:
+              "1px solid rgba(167,139,250,0.18)",
+          }}
+        >
+          <div
+            className="font-mono"
+            style={{
+              fontSize: 9,
+              color: "#a78bfa",
+              letterSpacing: "0.13em",
+              marginBottom: 9,
+            }}
+          >
+            DECISION EXPLANATION
+          </div>
+
+          {explanation.summary && (
+            <div
+              style={{
+                fontSize: 13,
+                fontWeight: 600,
+                color: "#e2e8f0",
+              }}
+            >
+              {explanation.summary}
+            </div>
+          )}
+
+          {explanation.detailedExplanation && (
+            <p
+              style={{
+                marginTop: 8,
+                marginBottom: 0,
+                fontSize: 11,
+                lineHeight: 1.65,
+                color: "#94a3b8",
+              }}
+            >
+              {explanation.detailedExplanation}
+            </p>
+          )}
+
+          {explanation.operationalImplication && (
+            <div
+              style={{
+                marginTop: 12,
+                padding: 10,
+                borderRadius: 5,
+                background:
+                  "rgba(167,139,250,0.04)",
+                border:
+                  "1px solid rgba(167,139,250,0.10)",
+                fontSize: 10,
+                lineHeight: 1.6,
+                color: "#c4b5fd",
+              }}
+            >
+              <span
+                className="font-mono"
+                style={{
+                  fontSize: 8,
+                  letterSpacing: "0.08em",
+                }}
+              >
+                OPERATIONAL IMPLICATION ·{" "}
+              </span>
+
+              {explanation.operationalImplication}
+            </div>
+          )}
+
+          {explanation.impactFactors &&
+            explanation.impactFactors.length > 0 && (
+              <div
+                style={{
+                  marginTop: 12,
+                  display: "flex",
+                  gap: 6,
+                  flexWrap: "wrap",
+                }}
+              >
+                {explanation.impactFactors.map(
+                  (factor, index) => (
+                    <span
+                      key={`${factor}-${index}`}
+                      className="font-mono"
+                      style={{
+                        padding: "4px 7px",
+                        borderRadius: 3,
+                        fontSize: 8,
+                        color: "#94a3b8",
+                        background:
+                          "rgba(148,163,184,0.05)",
+                        border:
+                          "1px solid rgba(148,163,184,0.08)",
+                      }}
+                    >
+                      {factor}
+                    </span>
+                  ),
+                )}
+              </div>
+            )}
+        </div>
+      )}
+    </div>
   );
 }
